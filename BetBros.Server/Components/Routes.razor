@@ -1,0 +1,70 @@
+<CascadingAuthenticationState>
+    <MudThemeProvider Theme="@_theme" IsDarkMode="true" />
+    <MudPopoverProvider />
+    <MudDialogProvider />
+    <MudSnackbarProvider />
+
+    <Router AppAssembly="typeof(Program).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)">
+                <NotAuthorized>
+                    @if (context.User.Identity?.IsAuthenticated != true)
+                    {
+                        <RedirectToLogin />
+                    }
+                    else
+                    {
+                        <p role="alert">You are not authorized to access this resource.</p>
+                    }
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Not found</PageTitle>
+            <LayoutView Layout="typeof(MainLayout)">
+                <p role="alert">Sorry, there's nothing at this address.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
+
+@code {
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#1E3A8A",
+            Secondary = "#F59E0B",
+            AppbarBackground = "#1E3A8A",
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#3B82F6",
+            Secondary = "#FBBF24",
+            AppbarBackground = "#1F2937",
+            Background = "#111827",
+            BackgroundGray = "#1F2937",
+            Surface = "#1F2937",
+            DrawerBackground = "#1F2937",
+            DrawerText = "rgba(255,255,255, 0.90)",
+            DrawerIcon = "rgba(255,255,255, 0.90)",
+            TextPrimary = "rgba(255,255,255, 0.90)",
+            TextSecondary = "rgba(255,255,255, 0.70)",
+            ActionDefault = "#9CA3AF",
+            ActionDisabled = "rgba(255,255,255, 0.26)",
+            ActionDisabledBackground = "rgba(255,255,255, 0.12)",
+            Divider = "rgba(255,255,255, 0.12)",
+            DividerLight = "rgba(255,255,255, 0.06)",
+            TableLines = "rgba(255,255,255, 0.12)",
+            LinesDefault = "rgba(255,255,255, 0.12)",
+            LinesInputs = "rgba(255,255,255, 0.3)",
+            TextDisabled = "rgba(255,255,255, 0.38)",
+            Info = "#3B82F6",
+            Success = "#10B981",
+            Warning = "#F59E0B",
+            Error = "#EF4444",
+            Dark = "#1F2937"
+        }
+    };
+}

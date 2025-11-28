@@ -1,0 +1,125 @@
+@inherits LayoutComponentBase
+@inject IAuthService AuthService
+@inject IGameWeekService GameWeekService
+@inject NavigationManager Navigation
+
+<MudLayout>
+    <AuthorizeView>
+        <Authorized>
+            <MudAppBar Elevation="1">
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+                <MudSpacer />
+
+                <MudText Typo="Typo.body1" Class="mr-4">
+                    @context.User.FindFirst("DisplayName")?.Value
+                </MudText>
+                <MudTooltip Text="Logga ut">
+                    <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" OnClick="HandleLogout" />
+                </MudTooltip>
+            </MudAppBar>
+
+            <MudDrawer Open="_drawerOpen" OpenChanged="@((bool val) => _drawerOpen = val)" Elevation="2" ClipMode="DrawerClipMode.Always">
+                <MudNavMenu>
+                    <MudNavLink Href="/" Icon="@Icons.Material.Filled.Dashboard" Match="NavLinkMatch.All">Översikt</MudNavLink>
+
+                    @if (_canSelectGames)
+                    {
+                        <MudNavLink Href="/valj-matcher" Icon="@Icons.Material.Filled.SportsSoccer">Välj Matcher & Spela</MudNavLink>
+                    }
+
+                    @if (_canEnterResults)
+                    {
+                        <MudNavLink Href="/resultat" Icon="@Icons.Material.Filled.Score">Ange Resultat</MudNavLink>
+                    }
+
+                    <MudNavLink Href="/historik" Icon="@Icons.Material.Filled.History">Historik</MudNavLink>
+                    <MudNavLink Href="/tabell" Icon="@Icons.Material.Filled.Leaderboard">Tabell</MudNavLink>
+                    <MudNavLink Href="/statistik" Icon="@Icons.Material.Filled.Analytics">Statistik</MudNavLink>
+                </MudNavMenu>
+            </MudDrawer>
+        </Authorized>
+    </AuthorizeView>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+    private bool _canSelectGames;
+    private bool _canEnterResults;
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await UpdatePermissions();
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await UpdatePermissions();
+    }
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        try
+        {
+            await UpdatePermissions();
+            StateHasChanged();
+        }
+        catch
+        {
+            throw; // TODO handle exception
+        }
+    }
+
+    private async Task UpdatePermissions()
+    {
+        if (AuthenticationState != null)
+        {
+            var authState = await AuthenticationState;
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                var currentUser = await AuthService.GetCurrentUserAsync();
+                if (currentUser != null)
+                {
+                    try
+                    {
+                        var currentWeek = GameWeekService.GetCurrentWeek();
+                        _canSelectGames = GameWeekService.CanUserSelectGames(currentUser.Id, currentWeek.Id);
+                        _canEnterResults = _canSelectGames;
+                    }
+                    catch
+                    {
+                        _canSelectGames = false;
+                        _canEnterResults = false;
+                    }
+                }
+            }
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login");
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

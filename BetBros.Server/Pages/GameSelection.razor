@@ -1,0 +1,609 @@
+@page "/valj-matcher"
+@using BetBros.Server.Enums
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IAuthService AuthService
+@inject IGameWeekService GameWeekService
+@inject IGameService GameService
+@inject IBetService BetService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Välj Matcher & Spela - BetBros</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Välj Matcher & Lägg Dina Spel</MudText>
+
+@if (_currentUser == null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (!_canSelectGames)
+{
+    <MudAlert Severity="Severity.Warning">
+        Du har inte behörighet att välja matcher denna vecka.
+    </MudAlert>
+}
+else
+{
+    <MudText Typo="Typo.body1" Class="mb-4">
+        Vecka @_currentWeek?.WeekNumber - Du väljer matcher och spelar denna vecka!
+    </MudText>
+
+    @* Game Selection Phase - Show if < 3 games or editing a game *@
+    @if ((_existingGames.Count < 3 || _editingGameId.HasValue) && !_editingGameId.HasValue)
+    {
+        <MudText Typo="Typo.body1" Class="mb-4">
+            <strong>Steg 1:</strong> Välj 3 matcher
+            (@_existingGames.Count / 3 valda)
+        </MudText>
+
+        <MudPaper Class="pa-4 mb-4">
+            <MudForm @ref="_form" Model="@_newGame">
+                <MudTextField @bind-Value="_newGame.HomeTeam"
+                              Label="Hemmalag"
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              Class="mb-4" />
+
+                <MudTextField @bind-Value="_newGame.AwayTeam"
+                              Label="Bortalag"
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              Class="mb-4" />
+
+                <MudSelect @bind-Value="_newGame.BetKind"
+                           Label="Speltyp"
+                           Variant="Variant.Outlined"
+                           Required="true"
+                           Class="mb-4"
+                           HelperText="Välj vilken typ av spel denna match har">
+                    <MudSelectItem Value="BetType.HomeWin">1/X/2 (Hemmavinst, Oavgjort, Bortavinst)</MudSelectItem>
+                    <MudSelectItem Value="BetType.OverOrUnder">Över eller Under (antal mål)</MudSelectItem>
+                    <MudSelectItem Value="BetType.ExactScore">Exakt Resultat</MudSelectItem>
+                </MudSelect>
+
+                @if (_newGame.BetKind == BetType.OverOrUnder)
+                {
+                    <MudNumericField @bind-Value="_newGame.OverUnderLine"
+                                     Label="Över/Under Linje (Mål)"
+                                     Variant="Variant.Outlined"
+                                     Required="true"
+                                     Min="0.5m"
+                                     Step="0.5m"
+                                     Class="mb-4"
+                                     HelperText="T.ex. 2.5 för över/under 2.5 mål" />
+                }
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMessage</MudAlert>
+                }
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           OnClick="AddGame"
+                           Disabled="_isSaving">
+                    @if (_isSaving)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Lägg till Match (@(_existingGames.Count + 1)/3)
+                </MudButton>
+            </MudForm>
+        </MudPaper>
+
+        @if (_existingGames.Any())
+        {
+            <MudText Typo="Typo.h6" Class="mb-4">Valda Matcher</MudText>
+            <MudStack Spacing="2">
+                @foreach (var game in _existingGames)
+                {
+                    var canEdit = GameService.CanEditOrDeleteGame(game.Id);
+                    <MudPaper Class="pa-4">
+                        <MudGrid>
+                            <MudItem xs="12" sm="9">
+                                <MudText>
+                                    <strong>@game.HomeTeam vs @game.AwayTeam</strong><br />
+                                    Speltyp: @GetBetKindText(game.BetKind)
+                                    @if (game.BetKind == BetType.OverOrUnder && game.OverUnderLine.HasValue)
+                                    {
+                                        <text> (@game.OverUnderLine mål)</text>
+                                    }
+                                </MudText>
+                            </MudItem>
+                            @if (canEdit)
+                            {
+                                <MudItem xs="12" sm="3" Class="d-flex justify-end align-center">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Color="Color.Error"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => DeleteGame(game.Id))" />
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    </MudPaper>
+                }
+            </MudStack>
+        }
+    }
+    @* Betting Phase - Show when 3 games are selected *@
+    else if (_existingGames.Count >= 3 && !_editingGameId.HasValue)
+    {
+        <MudAlert Severity="Severity.Success" Class="mb-4">
+            Alla matcher valda! Nu kan du lägga dina spel.
+        </MudAlert>
+
+        <MudText Typo="Typo.body1" Class="mb-4">
+            <strong>Steg 2:</strong> Lägg dina spel på varje match
+        </MudText>
+
+        <MudStack Spacing="4">
+            @foreach (var game in _existingGames)
+            {
+                var userBet = _existingBets.FirstOrDefault(b => b.GameId == game.Id);
+                var is1X2Game = game.BetKind == BetType.HomeWin || game.BetKind == BetType.Draw || game.BetKind == BetType.AwayWin 
+                    || game.BetKind == BetType.HomeWinToNil || game.BetKind == BetType.AwayWinToNil;
+                var isOverUnderGame = game.BetKind == BetType.OverOrUnder;
+                var isExactScoreGame = game.BetKind == BetType.ExactScore;
+
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">@game.HomeTeam vs @game.AwayTeam</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Info">
+                                Speltyp: @GetBetKindText(game.BetKind)
+                                @if (game.BetKind == BetType.OverOrUnder && game.OverUnderLine.HasValue)
+                                {
+                                    <text> (@game.OverUnderLine mål)</text>
+                                }
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                            @if (is1X2Game)
+                            {
+                                <MudText Typo="Typo.h6" Class="mb-2">Välj vinnare</MudText>
+                                <MudGrid Class="mb-4">
+                                    <MudItem xs="6" sm="4">
+                                        <MudButton OnClick="@(() => SetPrediction(game.Id, BetType.HomeWin))"
+                                                   Variant="@(GetTempBet(game.Id) == BetType.HomeWin ? Variant.Filled : Variant.Outlined)"
+                                                   Color="Color.Primary"
+                                                   FullWidth="true">
+                                            1 (Hemma)
+                                        </MudButton>
+                                    </MudItem>
+                                    <MudItem xs="6" sm="4">
+                                        <MudButton OnClick="@(() => SetPrediction(game.Id, BetType.HomeWinToNil))"
+                                                   Variant="@(GetTempBet(game.Id) == BetType.HomeWinToNil ? Variant.Filled : Variant.Outlined)"
+                                                   Color="Color.Primary"
+                                                   FullWidth="true">
+                                            1 + håller nollan
+                                        </MudButton>
+                                    </MudItem>
+                                    <MudItem xs="6" sm="4">
+                                        <MudButton OnClick="@(() => SetPrediction(game.Id, BetType.Draw))"
+                                                   Variant="@(GetTempBet(game.Id) == BetType.Draw ? Variant.Filled : Variant.Outlined)"
+                                                   Color="Color.Primary"
+                                                   FullWidth="true">
+                                            X (Oavgjort)
+                                        </MudButton>
+                                    </MudItem>
+                                    <MudItem xs="6" sm="4">
+                                        <MudButton OnClick="@(() => SetPrediction(game.Id, BetType.AwayWin))"
+                                                   Variant="@(GetTempBet(game.Id) == BetType.AwayWin ? Variant.Filled : Variant.Outlined)"
+                                                   Color="Color.Primary"
+                                                   FullWidth="true">
+                                            2 (Borta)
+                                        </MudButton>
+                                    </MudItem>
+                                    <MudItem xs="6" sm="4">
+                                        <MudButton OnClick="@(() => SetPrediction(game.Id, BetType.AwayWinToNil))"
+                                                   Variant="@(GetTempBet(game.Id) == BetType.AwayWinToNil ? Variant.Filled : Variant.Outlined)"
+                                                   Color="Color.Primary"
+                                                   FullWidth="true">
+                                            2 + håller nollan
+                                        </MudButton>
+                                    </MudItem>
+                                </MudGrid>
+                                @if (GetTempBet(game.Id).HasValue)
+                                {
+                                    @if (!_tempOdds.ContainsKey(game.Id))
+                                    {
+                                        _tempOdds[game.Id] = null;
+                                    }
+                                    <MudNumericField @bind-Value="@_tempOdds[game.Id]"
+                                                     Label="Odds (valfritt)"
+                                                     Variant="Variant.Outlined"
+                                                     Min="1.01m"
+                                                     Step="0.01m"
+                                                     HelperText="Ange decimal odds för referens (används inte för beräkning)"
+                                                     Class="mb-4" />
+                                }
+                            }
+
+                            @if (isOverUnderGame)
+                            {
+                                <MudText Typo="Typo.h6" Class="mb-2">Över/Under @game.OverUnderLine mål</MudText>
+                                <MudGrid Class="mb-4">
+                                    <MudItem xs="6">
+                                        <MudButton OnClick="@(() => SetPrediction(game.Id, BetType.Over))"
+                                                   Variant="@(GetTempBet(game.Id) == BetType.Over ? Variant.Filled : Variant.Outlined)"
+                                                   Color="Color.Primary"
+                                                   FullWidth="true">
+                                            Över
+                                        </MudButton>
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <MudButton OnClick="@(() => SetPrediction(game.Id, BetType.Under))"
+                                                   Variant="@(GetTempBet(game.Id) == BetType.Under ? Variant.Filled : Variant.Outlined)"
+                                                   Color="Color.Primary"
+                                                   FullWidth="true">
+                                            Under
+                                        </MudButton>
+                                    </MudItem>
+                                </MudGrid>
+                                @if (GetTempBet(game.Id).HasValue)
+                                {
+                                    @if (!_tempOdds.ContainsKey(game.Id))
+                                    {
+                                        _tempOdds[game.Id] = null;
+                                    }
+                                    <MudNumericField @bind-Value="@_tempOdds[game.Id]"
+                                                     Label="Odds (valfritt)"
+                                                     Variant="Variant.Outlined"
+                                                     Min="1.01m"
+                                                     Step="0.01m"
+                                                     HelperText="Ange decimal odds för referens (används inte för beräkning)"
+                                                     Class="mb-4" />
+                                }
+                            }
+
+                            @if (isExactScoreGame)
+                            {
+                                @if (!_tempScores.ContainsKey(game.Id))
+                                {
+                                    _tempScores[game.Id] = new ScoreModel();
+                                }
+                                @if (!_tempOdds.ContainsKey(game.Id))
+                                {
+                                    _tempOdds[game.Id] = null;
+                                }
+                                <MudText Typo="Typo.h6" Class="mb-2">Ange exakt resultat</MudText>
+                                <MudGrid Class="mb-4">
+                                    <MudItem xs="5">
+                                        <MudNumericField @bind-Value="@_tempScores[game.Id].HomeScore"
+                                                         Label="@game.HomeTeam"
+                                                         Variant="Variant.Outlined"
+                                                         Min="0"
+                                                         Required="true" />
+                                    </MudItem>
+                                    <MudItem xs="2" Class="d-flex align-center justify-center">
+                                        <MudText Typo="Typo.h5">-</MudText>
+                                    </MudItem>
+                                    <MudItem xs="5">
+                                        <MudNumericField @bind-Value="@_tempScores[game.Id].AwayScore"
+                                                         Label="@game.AwayTeam"
+                                                         Variant="Variant.Outlined"
+                                                         Min="0"
+                                                         Required="true" />
+                                    </MudItem>
+                                </MudGrid>
+                                <MudNumericField @bind-Value="@_tempOdds[game.Id]"
+                                                 Label="Odds (valfritt)"
+                                                 Variant="Variant.Outlined"
+                                                 Min="1.01m"
+                                                 Step="0.01m"
+                                                 HelperText="Ange decimal odds för referens (används inte för beräkning)"
+                                                 Class="mb-4" />
+                            }
+                    </MudCardContent>
+                </MudCard>
+            }
+        </MudStack>
+
+        @if (_existingGames.Count >= 3)
+        {
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Success"
+                       OnClick="@SubmitAllBets"
+                       Disabled="!CanSubmitAllBets() || _isSaving"
+                       Size="Size.Large"
+                       FullWidth="true"
+                       Class="mt-4">
+                @if (_isSaving)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Spara Alla Spel
+            </MudButton>
+        }
+    }
+}
+
+@code {
+    private MudForm _form = null!;
+    private User? _currentUser;
+    private GameWeek? _currentWeek;
+    private bool _canSelectGames;
+    private List<Game> _existingGames = [];
+    private List<Bet> _existingBets = [];
+    private bool _isSaving;
+    private string _errorMessage = string.Empty;
+    private readonly int? _editingGameId = null;
+
+    private readonly Dictionary<int, BetType?> _tempBets = new();
+    private readonly Dictionary<int, ScoreModel> _tempScores = new();
+    private readonly Dictionary<int, decimal?> _tempOdds = new();
+
+    private class NewGameModel
+    {
+        public string HomeTeam { get; set; } = string.Empty;
+        public string AwayTeam { get; set; } = string.Empty;
+        public BetType BetKind { get; set; } = BetType.HomeWin;
+        public decimal? OverUnderLine { get; set; } = 2.5m;
+    }
+
+    private class ScoreModel
+    {
+        public int HomeScore { get; set; }
+        public int AwayScore { get; set; }
+    }
+
+    private NewGameModel _newGame = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _currentUser = await AuthService.GetCurrentUserAsync();
+            if (_currentUser == null)
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            _currentWeek = GameWeekService.GetCurrentWeek();
+            _canSelectGames = GameWeekService.CanUserSelectGames(_currentUser.Id, _currentWeek.Id);
+
+            if (!_canSelectGames)
+            {
+                return;
+            }
+
+            _existingGames = GameService.GetGamesForWeek(_currentWeek.Id);
+            _existingBets = BetService.GetUserBetsForWeek(_currentUser.Id, _currentWeek.Id);
+
+            // Initialize temp storage for all games
+            foreach (var game in _existingGames)
+            {
+                if (!_tempScores.ContainsKey(game.Id))
+                {
+                    _tempScores[game.Id] = new ScoreModel();
+                }
+                if (!_tempOdds.ContainsKey(game.Id))
+                {
+                    _tempOdds[game.Id] = null;
+                }
+            }
+
+            // Load existing bets into temp storage
+            foreach (var bet in _existingBets)
+            {
+                _tempBets[bet.GameId] = bet.Prediction;
+                _tempOdds[bet.GameId] = bet.Odds;
+
+                if (bet.Prediction == BetType.ExactScore && bet.PredictedHomeScore.HasValue && bet.PredictedAwayScore.HasValue)
+                {
+                    _tempScores[bet.GameId] = new ScoreModel
+                    {
+                        HomeScore = bet.PredictedHomeScore.Value,
+                        AwayScore = bet.PredictedAwayScore.Value
+                    };
+                }
+            }
+
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Fel vid laddning: {ex.Message}";
+        }
+    }
+
+    private async Task AddGame()
+    {
+        _errorMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_newGame.HomeTeam))
+        {
+            _errorMessage = "Hemmalag måste anges";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_newGame.AwayTeam))
+        {
+            _errorMessage = "Bortalag måste anges";
+            return;
+        }
+
+        if (_newGame.BetKind == BetType.OverOrUnder && !_newGame.OverUnderLine.HasValue)
+        {
+            _errorMessage = "Över/Under linje måste anges för denna speltyp";
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            GameService.CreateGame(
+                _currentWeek!.Id,
+                _newGame.HomeTeam,
+                _newGame.AwayTeam,
+                _newGame.BetKind,
+                _newGame.OverUnderLine
+            );
+
+            Snackbar.Add($"Match tillagd: {_newGame.HomeTeam} vs {_newGame.AwayTeam}", Severity.Success);
+
+            // Reset form
+            _newGame = new NewGameModel { BetKind = BetType.HomeWin, OverUnderLine = 2.5m };
+
+            // Reload games
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteGame(int gameId)
+    {
+        try
+        {
+            var game = _existingGames.FirstOrDefault(g => g.Id == gameId);
+            if (game == null) return;
+
+            GameService.DeleteGame(gameId);
+            Snackbar.Add($"Match borttagen: {game.HomeTeam} vs {game.AwayTeam}", Severity.Info);
+
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fel: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void SetPrediction(int gameId, BetType betType)
+    {
+        _tempBets[gameId] = betType;
+    }
+
+    private BetType? GetTempBet(int gameId)
+    {
+        return _tempBets.GetValueOrDefault(gameId);
+    }
+
+    private bool CanSubmitAllBets()
+    {
+        if (_currentUser == null || !_existingGames.Any())
+            return false;
+
+        // Check if all games have valid bets and odds
+        foreach (var game in _existingGames)
+        {
+            if (game.BetKind == BetType.ExactScore)
+            {
+                // For exact score, need scores and odds to be set
+                if (!_tempScores.ContainsKey(game.Id))
+                    return false;
+            }
+            else
+            {
+                // For other bet types, need a prediction
+                if (!_tempBets.ContainsKey(game.Id) || !_tempBets[game.Id].HasValue)
+                    return false;
+            }
+            
+            // Odds are optional now (not used for calculation)
+        }
+
+        return true;
+    }
+
+    private async Task SubmitAllBets()
+    {
+        if (!CanSubmitAllBets() || _currentUser == null)
+            return;
+
+        _isSaving = true;
+
+        try
+        {
+            var savedCount = 0;
+            var updatedCount = 0;
+            var errors = new List<string>();
+
+            foreach (var game in _existingGames)
+            {
+                try
+                {
+                    var existingBet = _existingBets.FirstOrDefault(b => b.GameId == game.Id);
+                    var hasExistingBet = existingBet != null;
+
+                    var odds = _tempOdds.ContainsKey(game.Id) ? _tempOdds[game.Id] : null;
+                    
+                    if (game.BetKind == BetType.ExactScore)
+                    {
+                        var scores = _tempScores[game.Id];
+                        BetService.PlaceBet(_currentUser.Id, game.Id, BetType.ExactScore, odds ?? 1.0m, scores.HomeScore, scores.AwayScore);
+                    }
+                    else
+                    {
+                        var prediction = _tempBets[game.Id]!.Value;
+                        BetService.PlaceBet(_currentUser.Id, game.Id, prediction, odds ?? 1.0m);
+                    }
+
+                    if (hasExistingBet)
+                        updatedCount++;
+                    else
+                        savedCount++;
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"{game.HomeTeam} vs {game.AwayTeam}: {ex.Message}");
+                }
+            }
+
+            if (savedCount > 0 || updatedCount > 0)
+            {
+                var message = savedCount > 0 && updatedCount > 0
+                    ? $"Spel sparade för {savedCount} match(er) och uppdaterade för {updatedCount} match(er)!"
+                    : savedCount > 0
+                        ? $"Spel sparade för {savedCount} match(er)!"
+                        : $"Spel uppdaterade för {updatedCount} match(er)!";
+                Snackbar.Add(message, Severity.Success);
+            }
+
+            if (errors.Any())
+            {
+                foreach (var error in errors)
+                {
+                    Snackbar.Add(error, Severity.Error);
+                }
+            }
+
+            // Reload data to show updated bets
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fel: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private string GetBetKindText(BetType betKind)
+    {
+        return betKind switch
+        {
+            BetType.HomeWin or BetType.Draw or BetType.AwayWin or BetType.HomeWinToNil or BetType.AwayWinToNil => "1/X/2",
+            BetType.OverOrUnder => "Över eller Under",
+            BetType.ExactScore => "Exakt Resultat",
+            _ => betKind.ToString()
+        };
+    }
+}

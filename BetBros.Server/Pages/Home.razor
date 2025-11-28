@@ -1,0 +1,238 @@
+﻿@page "/"
+@using BetBros.Server.Enums
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IAuthService AuthService
+@inject IGameWeekService GameWeekService
+@inject IGameService GameService
+@inject IBetService BetService
+
+<PageTitle>Översikt - BetBros</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Översikt</MudText>
+
+<AuthorizeView>
+    <Authorized>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Aktuell Vecka</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        @if (_currentWeek != null && _selector != null)
+                        {
+                            <MudText><strong>Vecka:</strong> @_currentWeek.WeekNumber</MudText>
+                            <MudText><strong>Matchväljare:</strong> @_selector.DisplayName</MudText>
+                            <MudText><strong>Period:</strong> Vecka @GetSwedishWeekNumber(_currentWeek.StartDate)</MudText>
+                        }
+                        else
+                        {
+                            <MudText>Laddar...</MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Din Statistik</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        @if (_currentUser != null && _leaderboard != null)
+                        {
+                            var userProfit = _leaderboard.GetValueOrDefault(_currentUser.Id, 0);
+                            var userRank = _leaderboard.Keys.ToList().IndexOf(_currentUser.Id) + 1;
+
+                            <MudText><strong>Total Vinst/Förlust:</strong> 
+                                <MudText Color="@(userProfit >= 0 ? Color.Success : Color.Error)">
+                                    @userProfit.ToString("N2") kr
+                                </MudText>
+                            </MudText>
+                            <MudText><strong>Placering:</strong> @(userRank > 0 ? $"#{userRank}" : "N/A")</MudText>
+                        }
+                        else
+                        {
+                            <MudText>Laddar...</MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Veckans Matcher & Spel</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        @if (_selector != null)
+                        {
+                            <MudText Typo="Typo.body2" Class="mb-4">
+                                @_selector.DisplayName väljer och spelar denna vecka
+                            </MudText>
+                        }
+
+                        @if (_games != null && _games.Any())
+                        {
+                            <MudStack Spacing="3">
+                                @foreach (var game in _games)
+                                {
+                                    var bet = _selectorBets?.FirstOrDefault(b => b.GameId == game.Id);
+
+                                    <MudPaper Class="pa-4">
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="6">
+                                                <MudText Typo="Typo.h6">@game.HomeTeam vs @game.AwayTeam</MudText>
+                                                <MudText Typo="Typo.body2">
+                                                    Speltyp: @GetBetKindText(game.BetKind)
+                                                    @if (game.BetKind == BetType.OverOrUnder && game.OverUnderLine.HasValue)
+                                                    {
+                                                        <text> (@game.OverUnderLine mål)</text>
+                                                    }
+                                                </MudText>
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                @if (bet != null)
+                                                {
+                                                    <MudText Typo="Typo.body2"><strong>Spel:</strong></MudText>
+                                                    <MudText>@GetBetDisplayText(bet)</MudText>
+                                                    @if (bet.Odds.HasValue)
+                                                    {
+                                                        <MudText Typo="Typo.body2">Odds: @bet.Odds.Value.ToString("F2")</MudText>
+                                                        <MudText Typo="Typo.body2">Insats: @bet.Stake.ToString("N2") kr</MudText>
+                                                    }
+
+                                                    @if (game.Status == GameStatus.Completed && bet.ScoredAt.HasValue)
+                                                    {
+                                                        <MudText Typo="Typo.body2" Class="mt-2">
+                                                            <strong>Resultat: @game.HomeScore - @game.AwayScore</strong>
+                                                        </MudText>
+                                                        @if (bet.Status == BetStatus.Won)
+                                                        {
+                                                            <MudText Typo="Typo.body2" Color="Color.Success" Class="mt-1">
+                                                                <strong>✓ Vinst</strong>
+                                                            </MudText>
+                                                        }
+                                                        else if (bet.Status == BetStatus.Lost)
+                                                        {
+                                                            <MudText Typo="Typo.body2" Color="Color.Error" Class="mt-1">
+                                                                <strong>✗ Förlust</strong>
+                                                            </MudText>
+                                                        }
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <MudText Typo="Typo.caption">Väntar på spel...</MudText>
+                                                }
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudPaper>
+                                }
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudText>Inga matcher valda för denna vecka ännu.</MudText>
+                            @if (_currentUser != null && _selector != null && _currentUser.Id == _selector.Id)
+                            {
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           Href="/valj-matcher"
+                                           Class="mt-4">
+                                    Välj Matcher
+                                </MudButton>
+                            }
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private User? _currentUser;
+    private GameWeek? _currentWeek;
+    private User? _selector;
+    private List<Game>? _games;
+    private List<Bet>? _selectorBets;
+    private Dictionary<int, decimal>? _leaderboard;
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _currentUser = await AuthService.GetCurrentUserAsync();
+            _currentWeek = GameWeekService.GetCurrentWeek();
+            _selector = GameWeekService.GetWeekSelector(_currentWeek.Id);
+            _games = GameService.GetGamesForWeek(_currentWeek.Id);
+            _leaderboard = BetService.GetLeaderboard();
+
+            // Load selector's bets for the current week
+            if (_selector != null && _currentWeek != null)
+            {
+                _selectorBets = BetService.GetUserBetsForWeek(_selector.Id, _currentWeek.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading data: {ex.Message}");
+        }
+    }
+
+    private static string GetBetKindText(BetType betKind)
+    {
+        return betKind switch
+        {
+            BetType.HomeWin or BetType.Draw or BetType.AwayWin or BetType.HomeWinToNil or BetType.AwayWinToNil => "1/X/2",
+            BetType.OverOrUnder => "Över eller Under",
+            BetType.ExactScore => "Exakt Resultat",
+            _ => betKind.ToString()
+        };
+    }
+
+    private static string GetBetTypeText(BetType betType)
+    {
+        return betType switch
+        {
+            BetType.HomeWin => "1 (Hemma)",
+            BetType.HomeWinToNil => "1 + höll nollan",
+            BetType.Draw => "X (Oavgjort)",
+            BetType.AwayWin => "2 (Borta)",
+            BetType.AwayWinToNil => "2 + höll nollan",
+            BetType.Over => "Över",
+            BetType.Under => "Under",
+            BetType.ExactScore => "Exakt Resultat",
+            _ => betType.ToString()
+        };
+    }
+
+    private static string GetBetDisplayText(Bet bet)
+    {
+        return bet.Prediction == BetType.ExactScore ? $"{bet.PredictedHomeScore}-{bet.PredictedAwayScore}" : GetBetTypeText(bet.Prediction);
+    }
+
+    private int GetSwedishWeekNumber(DateTime date)
+    {
+        // Calculate ISO 8601 week number (Swedish standard)
+        var localDate = date.ToLocalTime();
+        return System.Globalization.ISOWeek.GetWeekOfYear(localDate);
+    }
+}
+

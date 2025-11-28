@@ -1,0 +1,181 @@
+@page "/statistik"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IBetService BetService
+@inject IDataStore DataStore
+
+<PageTitle>Statistik - BetBros</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Finansiell Statistik</MudText>
+
+<MudText Typo="Typo.body2" Class="mb-4">
+    Varje vecka satsar väljaren 100kr totalt. När resultaten anges, registreras total vinst/förlust för veckan.
+</MudText>
+
+@if (_financialStats == null || _summary == null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Sammanfattning</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudPaper Class="pa-3" Elevation="2">
+                                <MudText Typo="Typo.caption">Totalt Insatt</MudText>
+                                <MudText Typo="Typo.h5" Color="Color.Primary">
+                                    <strong>@_summary.TotalBet.ToString("N0") kr</strong>
+                                </MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudPaper Class="pa-3" Elevation="2">
+                                <MudText Typo="Typo.caption">Totalt Vunnet</MudText>
+                                <MudText Typo="Typo.h5" Color="Color.Primary">
+                                    <strong>@_summary.TotalWon.ToString("N0") kr</strong>
+                                </MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudPaper Class="pa-3" Elevation="2">
+                                <MudText Typo="Typo.caption">Nettoresultat</MudText>
+                                <MudText Typo="Typo.h5" Color="@(_summary.NetProfit >= 0 ? Color.Success : Color.Error)">
+                                    <strong>@_summary.NetProfit.ToString("N0") kr</strong>
+                                </MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudPaper Class="pa-3" Elevation="2">
+                                <MudText Typo="Typo.caption">Total ROI</MudText>
+                                <MudText Typo="Typo.h5" Color="@(_summary.RoiPercent >= 0 ? Color.Success : Color.Error)">
+                                    <strong>@_summary.RoiPercent.ToString("F1")%</strong>
+                                </MudText>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                    <MudText Typo="Typo.caption" Class="mt-3">
+                        Antal veckor: @_summary.TotalWeeks
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Individuell Statistik</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    @if (_financialStats.Any())
+                    {
+                        <MudTable Items="@_financialStatsList" Hover="true" Dense="true" Breakpoint="Breakpoint.Sm">
+                            <HeaderContent>
+                                <MudTh>Spelare</MudTh>
+                                <MudTh>Insatt</MudTh>
+                                <MudTh>Vunnet</MudTh>
+                                <MudTh>Förlorat</MudTh>
+                                <MudTh>Nettoresultat</MudTh>
+                                <MudTh>ROI %</MudTh>
+                                <MudTh>Veckor</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Spelare">
+                                    <MudText Typo="Typo.body1"><strong>@context.DisplayName</strong></MudText>
+                                </MudTd>
+                                <MudTd DataLabel="Insatt">
+                                    <MudText Typo="Typo.body2">@context.TotalBet.ToString("N0") kr</MudText>
+                                </MudTd>
+                                <MudTd DataLabel="Vunnet">
+                                    <MudText Typo="Typo.body2">
+                                        <strong>@context.TotalWon.ToString("N0") kr</strong>
+                                    </MudText>
+                                </MudTd>
+                                <MudTd DataLabel="Förlorat">
+                                    <MudText Typo="Typo.body2" Color="Color.Error">
+                                        <strong>@context.TotalLost.ToString("N0") kr</strong>
+                                    </MudText>
+                                </MudTd>
+                                <MudTd DataLabel="Nettoresultat">
+                                    <MudText Typo="Typo.body2" Color="@(context.NetProfit >= 0 ? Color.Success : Color.Error)">
+                                        <strong>@context.NetProfit.ToString("N0") kr</strong>
+                                    </MudText>
+                                </MudTd>
+                                <MudTd DataLabel="ROI %">
+                                    <MudText Typo="Typo.body2" Color="@(context.RoiPercent >= 0 ? Color.Success : Color.Error)">
+                                        <strong>@context.RoiPercent.ToString("F1")%</strong>
+                                    </MudText>
+                                </MudTd>
+                                <MudTd DataLabel="Veckor">
+                                    <MudText Typo="Typo.body2">@context.WeeksParticipated</MudText>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                    else
+                    {
+                        <MudText>Ingen statistik tillgänglig ännu.</MudText>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private Dictionary<int, FinancialStats>? _financialStats;
+    private FinancialSummary? _summary;
+    private List<User> _allUsers = [];
+    private List<FinancialStatsItem> _financialStatsList = [];
+
+    private class FinancialStatsItem
+    {
+        public string DisplayName { get; set; } = string.Empty;
+        public decimal TotalBet { get; set; }
+        public decimal TotalWon { get; set; }
+        public decimal TotalLost => Math.Max(0, TotalBet - TotalWon);
+        public decimal NetProfit { get; set; }
+        public decimal RoiPercent { get; set; }
+        public int WeeksParticipated { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        LoadData();
+    }
+
+    private void LoadData()
+    {
+        _allUsers = DataStore.GetUsers();
+        _financialStats = BetService.GetFinancialStats();
+        _summary = BetService.GetFinancialSummary();
+
+        // Build list for table
+        _financialStatsList = [];
+        foreach (var stat in _financialStats.OrderByDescending(s => s.Value.NetProfit))
+        {
+            var user = _allUsers.FirstOrDefault(u => u.Id == stat.Key);
+            if (user != null)
+            {
+                _financialStatsList.Add(new FinancialStatsItem
+                {
+                    DisplayName = user.DisplayName,
+                    TotalBet = stat.Value.TotalBet,
+                    TotalWon = stat.Value.TotalWon,
+                    NetProfit = stat.Value.NetProfit,
+                    RoiPercent = stat.Value.RoiPercent,
+                    WeeksParticipated = stat.Value.WeeksParticipated
+                });
+            }
+        }
+    }
+}

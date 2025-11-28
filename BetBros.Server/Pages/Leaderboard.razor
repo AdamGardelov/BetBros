@@ -1,0 +1,182 @@
+@page "/tabell"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IBetService BetService
+@inject IDataStore DataStore
+
+<PageTitle>Tabell - BetBros</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Tabell & Statistik</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="7">
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Sammanställning</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                @if (leaderboard.Any())
+                {
+                    <MudTable Items="@leaderboardItems" Hover="true" Dense="true" Breakpoint="Breakpoint.Sm">
+                        <HeaderContent>
+                            <MudTh>Plac.</MudTh>
+                            <MudTh>Spelare</MudTh>
+                            <MudTh>Total Vinst/Förlust</MudTh>
+                            <MudTh>Spel</MudTh>
+                            <MudTh>Träff %</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Plac.">
+                                @if (context.Rank == 1)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
+                                }
+                                <strong>#@context.Rank</strong>
+                            </MudTd>
+                            <MudTd DataLabel="Spelare">
+                                <MudText Typo="Typo.body1"><strong>@context.DisplayName</strong></MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Total Vinst/Förlust">
+                                <MudText Typo="Typo.body1" Color="@(context.TotalProfit >= 0 ? Color.Success : Color.Error)">
+                                    <strong>@context.TotalProfit.ToString("N2") kr</strong>
+                                </MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Spel">@context.TotalBets</MudTd>
+                            <MudTd DataLabel="Träff %">
+                                @context.OverallAccuracy.ToString("F1")%
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+                else
+                {
+                    <MudText>Ingen data tillgänglig ännu.</MudText>
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+
+    <MudItem xs="12" md="5">
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Spelsystem</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudStack Spacing="2">
+                    <MudPaper Class="pa-3" Elevation="0">
+                        <MudText Typo="Typo.body1"><strong>Insats per bet</strong></MudText>
+                        <MudText Typo="Typo.h5" Color="Color.Primary">33.33 kr</MudText>
+                    </MudPaper>
+                    <MudDivider />
+                    <MudText Typo="Typo.caption" Class="mt-2">
+                        Varje vecka satsar väljaren 100kr totalt (33.33kr per match). Vinst beräknas baserat på odds.
+                    </MudText>
+                </MudStack>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+
+    <MudItem xs="12">
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Detaljerad Statistik</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                @if (userStats.Any())
+                {
+                    <MudGrid>
+                        @foreach (var userStat in userStats.OrderByDescending(s => s.Value.TotalBets))
+                        {
+                            var user = allUsers.First(u => u.Id == userStat.Key);
+                            var stats = userStat.Value;
+
+                            <MudItem xs="12" sm="6" md="4">
+                                <MudPaper Class="pa-4" Elevation="2">
+                                    <MudText Typo="Typo.h6" GutterBottom="true">@user.DisplayName</MudText>
+
+                                    <MudStack Spacing="1">
+                                        <MudText Typo="Typo.body2">
+                                            <strong>Antal spel:</strong> @stats.TotalBets
+                                        </MudText>
+                                        <MudDivider Class="my-2" />
+                                        <MudText Typo="Typo.body2">
+                                            <strong>Vinster:</strong> @stats.TotalWins (@stats.AccuracyPercent.ToString("F1")%)
+                                        </MudText>
+                                    </MudStack>
+
+                                    @if (stats.TotalBets > 0)
+                                    {
+                                        <MudProgressLinear Color="Color.Primary"
+                                                           Value="@((double)stats.AccuracyPercent)"
+                                                           Class="mt-3"
+                                                           Size="Size.Small" />
+                                        <MudText Typo="Typo.caption" Align="Align.Center">
+                                            Träffsäkerhet
+                                        </MudText>
+                                    }
+                                </MudPaper>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                }
+                else
+                {
+                    <MudText>Ingen statistik tillgänglig ännu.</MudText>
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private Dictionary<int, decimal> leaderboard = new();
+    private Dictionary<int, UserStats> userStats = new();
+    private List<User> allUsers = new();
+    private List<LeaderboardItem> leaderboardItems = new();
+
+    private class LeaderboardItem
+    {
+        public int Rank { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public decimal TotalProfit { get; set; }
+        public int TotalBets { get; set; }
+        public decimal OverallAccuracy { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        LoadData();
+    }
+
+    private void LoadData()
+    {
+        leaderboard = BetService.GetLeaderboard();
+        userStats = BetService.GetUserStats();
+        allUsers = DataStore.GetUsers();
+
+        // Build leaderboard items
+        leaderboardItems = new List<LeaderboardItem>();
+        int rank = 1;
+
+        foreach (var entry in leaderboard)
+        {
+            var user = allUsers.First(u => u.Id == entry.Key);
+            var stats = userStats.ContainsKey(entry.Key) ? userStats[entry.Key] : new UserStats();
+
+            leaderboardItems.Add(new LeaderboardItem
+            {
+                Rank = rank++,
+                DisplayName = user.DisplayName,
+                TotalProfit = entry.Value,
+                TotalBets = stats.TotalBets,
+                OverallAccuracy = stats.AccuracyPercent
+            });
+        }
+    }
+}

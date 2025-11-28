@@ -1,0 +1,111 @@
+@page "/login"
+@using Microsoft.AspNetCore.Components.Web
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudPaper Elevation="4" Class="pa-8">
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <img src="logo.png" alt="BetBros" style="max-width: 200px; width: 100%; height: auto;" />
+        </div>
+
+        <MudForm @ref="form" Class="mt-6">
+            <MudTextField @bind-Value="username"
+                          Label="Användarnamn"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          HelperText="Ange ditt användarnamn"
+                          OnKeyDown="HandleKeyDown" />
+
+            <MudTextField @bind-Value="password"
+                          Label="Lösenord"
+                          Variant="Variant.Outlined"
+                          InputType="InputType.Password"
+                          Required="true"
+                          HelperText="Ange ditt lösenord"
+                          Class="mt-4"
+                          OnKeyDown="HandleKeyDown" />
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-4">@errorMessage</MudAlert>
+            }
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Class="mt-6"
+                       OnClick="HandleLogin"
+                       Disabled="isLoading">
+                @if (isLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                }
+                else
+                {
+                    <text>Logga in</text>
+                }
+            </MudButton>
+        </MudForm>
+
+        <MudDivider Class="my-6" />
+        @* *@
+        @* <MudText Typo="Typo.caption" Align="Align.Center"> *@
+        @*     Testkonton: user1, user2, user3, user4 (lösenord: "password") *@
+        @* </MudText> *@
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private MudForm form = null!;
+    private string username = string.Empty;
+    private string password = string.Empty;
+    private string errorMessage = string.Empty;
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Disabled auto-login to prevent redirect loops
+        // Uncomment after authentication is working:
+        // #if DEBUG
+        //     await AutoLoginInDevelopment();
+        // #endif
+    }
+
+    private async Task AutoLoginInDevelopment()
+    {
+        // Auto-login as gardelov in development
+        var user = await AuthService.LoginAsync("gardelov", "password");
+        if (user != null)
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await HandleLogin();
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        var user = await AuthService.LoginAsync(username, password);
+
+        if (user != null)
+        {
+            Navigation.NavigateTo("/");
+        }
+        else
+        {
+            errorMessage = "Felaktigt användarnamn eller lösenord";
+        }
+
+        isLoading = false;
+    }
+}

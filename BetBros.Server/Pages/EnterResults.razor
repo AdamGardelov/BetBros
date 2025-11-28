@@ -1,0 +1,499 @@
+@page "/resultat"
+@using BetBros.Server.Enums
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject IAuthService AuthService
+@inject IGameWeekService GameWeekService
+@inject IGameService GameService
+@inject IBetService BetService
+@inject IDataStore DataStore
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Ange Resultat - BetBros</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Ange Matchresultat</MudText>
+
+@if (!_canEnterResults)
+{
+    <MudAlert Severity="Severity.Warning">
+        Du har inte behörighet att ange resultat denna vecka.
+    </MudAlert>
+}
+else if (_currentWeek == null || _currentUser == null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudText Typo="Typo.body1" Class="mb-4">
+        Vecka @_currentWeek.WeekNumber - Ange slutresultat för matcher
+    </MudText>
+
+    @if (!_games.Any())
+    {
+        <MudAlert Severity="Severity.Info">
+            Inga matcher är valda för denna vecka ännu.
+        </MudAlert>
+    }
+    else
+    {
+        <MudStack Spacing="4">
+            @foreach (var game in _games)
+            {
+                var hasResult = game.HomeScore.HasValue && game.AwayScore.HasValue;
+
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">@game.HomeTeam vs @game.AwayTeam</MudText>
+                            <MudText Typo="Typo.body2">
+                                Speltyp: @GetBetKindText(game.BetKind)
+                                @if (game.BetKind == BetType.OverOrUnder && game.OverUnderLine.HasValue)
+                                {
+                                    <text> (@game.OverUnderLine mål)</text>
+                                }
+                            </MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        @if (hasResult)
+                        {
+                            <MudAlert Severity="Severity.Info" Class="mb-4">
+                                Nuvarande resultat: @game.HomeScore - @game.AwayScore
+                                <br />
+                                @if (game.BetKind == BetType.OverOrUnder && game.OverUnderLine.HasValue)
+                                {
+                                    <text>
+                                        Totalt mål: @(game.HomeScore + game.AwayScore) (@(game.HomeScore + game.AwayScore > game.OverUnderLine ? "Över" : "Under") @game.OverUnderLine)
+                                        <br />
+                                    </text>
+                                }
+                                Utfall: @GetResultText(game)
+                                <br />
+                                <MudText Typo="Typo.caption">Du kan ändra resultatet nedan.</MudText>
+                            </MudAlert>
+                        }
+                        <MudGrid>
+                            <MudItem xs="12" sm="5">
+                                <MudNumericField @bind-Value="@_tempScores[game.Id].HomeScore"
+                                                 Label="@($"{game.HomeTeam} (Hemma)")"
+                                                 Variant="Variant.Outlined"
+                                                 Min="0"
+                                                 Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" sm="2" Class="d-flex align-center justify-center">
+                                <MudText Typo="Typo.h5">-</MudText>
+                            </MudItem>
+                            <MudItem xs="12" sm="5">
+                                <MudNumericField @bind-Value="@_tempScores[game.Id].AwayScore"
+                                                 Label="@($"{game.AwayTeam} (Borta)")"
+                                                 Variant="Variant.Outlined"
+                                                 Min="0"
+                                                 Required="true" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudCardContent>
+                </MudCard>
+            }
+        </MudStack>
+
+        @if (_games.Count == 3)
+        {
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h6" Class="mb-3">Total Vinst/Förlust för Veckan</MudText>
+                <MudNumericField @bind-Value="_weekNetProfit"
+                                 Label="Total kr (+ eller -)"
+                                 Variant="Variant.Outlined"
+                                 HelperText="Ange total vinst (positivt, t.ex. +150) eller förlust (negativt, t.ex. -100). Måste vara antingen positivt eller negativt."
+                                 Class="mb-2" />
+                @if (_weekNetProfit.HasValue && _weekNetProfit.Value == 0)
+                {
+                    <MudAlert Severity="Severity.Warning" Class="mt-2">
+                        Vinst/förlust måste vara antingen positivt (vinst) eller negativt (förlust), inte noll.
+                    </MudAlert>
+                }
+                @{
+                    var validationResult = ValidateNetProfitAgainstResults();
+                }
+                @if (!string.IsNullOrEmpty(validationResult))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mt-2">
+                        @validationResult
+                    </MudAlert>
+                }
+            </MudPaper>
+        }
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   OnClick="@SubmitAllResults"
+                   Disabled="!CanSubmitAllResults() || _isSaving"
+                   Size="Size.Large"
+                   FullWidth="true"
+                   Class="mt-4">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @if (_games.All(g => g.HomeScore.HasValue && g.AwayScore.HasValue))
+            {
+                <text>Uppdatera Alla Resultat</text>
+            }
+            else
+            {
+                <text>Spara Alla Resultat</text>
+            }
+        </MudButton>
+
+        @if (_games.All(g => g.HomeScore.HasValue && g.AwayScore.HasValue))
+        {
+            <MudAlert Severity="Severity.Success" Class="mt-4">
+                Alla resultat för denna vecka är inlagda!
+            </MudAlert>
+        }
+    }
+}
+
+@code {
+    private User? _currentUser;
+    private GameWeek? _currentWeek;
+    private bool _canEnterResults;
+    private List<Game> _games = [];
+    private readonly Dictionary<int, ScoreModel> _tempScores = new();
+    private decimal? _weekNetProfit;
+    private bool _isSaving;
+
+    private class ScoreModel
+    {
+        public int HomeScore { get; set; }
+        public int AwayScore { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _currentUser = await AuthService.GetCurrentUserAsync();
+            if (_currentUser == null)
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            _currentWeek = GameWeekService.GetCurrentWeek();
+            _canEnterResults = GameWeekService.CanUserSelectGames(_currentUser.Id, _currentWeek.Id);
+
+            if (!_canEnterResults)
+            {
+                return;
+            }
+
+            _games = GameService.GetGamesForWeek(_currentWeek.Id);
+
+            // Load existing net profit if available
+            _weekNetProfit = _currentWeek.NetProfit;
+
+            // Initialize temp scores - use existing results if available, otherwise create new
+            _tempScores.Clear();
+            foreach (var game in _games)
+            {
+                if (game.HomeScore.HasValue && game.AwayScore.HasValue)
+                {
+                    // Pre-fill with existing results for editing
+                    _tempScores[game.Id] = new ScoreModel
+                    {
+                        HomeScore = game.HomeScore.Value,
+                        AwayScore = game.AwayScore.Value
+                    };
+                }
+                else
+                {
+                    // New result entry
+                    _tempScores[game.Id] = new ScoreModel();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fel vid laddning: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private bool CanSubmitAllResults()
+    {
+        if (_currentUser == null || _games == null || !_games.Any())
+            return false;
+
+        // Check if all games have valid scores in temp storage
+        foreach (var game in _games)
+        {
+            if (!_tempScores.ContainsKey(game.Id))
+                return false;
+
+            var score = _tempScores[game.Id];
+            if (score.HomeScore < 0 || score.AwayScore < 0)
+                return false;
+        }
+
+        // Validate net profit: must be positive or negative (not zero or null)
+        if (_games.Count == 3)
+        {
+            if (!_weekNetProfit.HasValue || _weekNetProfit.Value == 0)
+                return false;
+
+            // Validate that the amount matches the game results
+            var validationError = ValidateNetProfitAgainstResults();
+            if (!string.IsNullOrEmpty(validationError))
+                return false;
+        }
+
+        return true;
+    }
+
+    private async Task SubmitAllResults()
+    {
+        if (!CanSubmitAllResults() || _currentUser == null)
+        {
+            // Check specifically for net profit validation
+            if (_games.Count == 3 && (!_weekNetProfit.HasValue || _weekNetProfit.Value == 0))
+            {
+                Snackbar.Add("Vinst/förlust måste anges och måste vara antingen positivt (vinst) eller negativt (förlust), inte noll.", Severity.Warning);
+            }
+            return;
+        }
+
+        _isSaving = true;
+
+        try
+        {
+            var savedCount = 0;
+            var updatedCount = 0;
+            var errors = new List<string>();
+
+            foreach (var game in _games)
+            {
+                if (_tempScores.ContainsKey(game.Id))
+                {
+                    try
+                    {
+                        var score = _tempScores[game.Id];
+                        var hasExistingResult = game.HomeScore.HasValue && game.AwayScore.HasValue;
+                        
+                        // Check if result has changed
+                        var hasChanged = !hasExistingResult || 
+                                        game.HomeScore != score.HomeScore || 
+                                        game.AwayScore != score.AwayScore;
+                        
+                        if (hasChanged)
+                        {
+                            GameService.EnterResults(game.Id, score.HomeScore, score.AwayScore, _currentUser.Id);
+                            if (hasExistingResult)
+                                updatedCount++;
+                            else
+                                savedCount++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add($"{game.HomeTeam} vs {game.AwayTeam}: {ex.Message}");
+                    }
+                }
+            }
+
+            // Update week's net profit
+            if (_currentWeek != null)
+            {
+                try
+                {
+                    GameWeekService.UpdateWeekNetProfit(_currentWeek.Id, _weekNetProfit);
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"Kunde inte uppdatera veckans vinst/förlust: {ex.Message}");
+                }
+            }
+
+            if (savedCount > 0 || updatedCount > 0)
+            {
+                var message = savedCount > 0 && updatedCount > 0
+                    ? $"Resultat sparade för {savedCount} match(er) och uppdaterade för {updatedCount} match(er)!"
+                    : savedCount > 0
+                        ? $"Resultat sparade för {savedCount} match(er)!"
+                        : $"Resultat uppdaterade för {updatedCount} match(er)!";
+                Snackbar.Add(message, Severity.Success);
+            }
+
+            if (errors.Any())
+            {
+                foreach (var error in errors)
+                {
+                    Snackbar.Add(error, Severity.Error);
+                }
+            }
+
+            // Reload data
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fel: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private string GetBetKindText(BetType betKind)
+    {
+        return betKind switch
+        {
+            BetType.HomeWin or BetType.Draw or BetType.AwayWin or BetType.HomeWinToNil or BetType.AwayWinToNil => "1/X/2",
+            BetType.OverOrUnder => "Över eller Under",
+            BetType.ExactScore => "Exakt Resultat",
+            _ => betKind.ToString()
+        };
+    }
+
+    private string GetResultText(Game game)
+    {
+        if (!game.HomeScore.HasValue || !game.AwayScore.HasValue)
+            return "";
+
+        var is1X2Game = game.BetKind == BetType.HomeWin || game.BetKind == BetType.Draw || game.BetKind == BetType.AwayWin 
+            || game.BetKind == BetType.HomeWinToNil || game.BetKind == BetType.AwayWinToNil;
+        var isOverUnderGame = game.BetKind == BetType.OverOrUnder;
+        var isExactScoreGame = game.BetKind == BetType.ExactScore;
+
+        if (is1X2Game)
+        {
+            // Check for win-to-nil scenarios first
+            if (game.HomeScore > game.AwayScore && game.AwayScore == 0)
+                return "1 + höll nollan";
+            if (game.AwayScore > game.HomeScore && game.HomeScore == 0)
+                return "2 + höll nollan";
+            // Regular win/draw results
+            if (game.HomeScore > game.AwayScore)
+                return "1 (Hemma vann)";
+            if (game.HomeScore < game.AwayScore)
+                return "2 (Borta vann)";
+            return "X (Oavgjort)";
+        }
+
+        if (isOverUnderGame && game.OverUnderLine.HasValue)
+        {
+            var totalGoals = game.HomeScore.Value + game.AwayScore.Value;
+            return totalGoals > game.OverUnderLine.Value ? "Över" : "Under";
+        }
+
+        if (isExactScoreGame)
+        {
+            return $"{game.HomeScore}-{game.AwayScore}";
+        }
+
+        return "";
+    }
+
+    private string ValidateNetProfitAgainstResults()
+    {
+        // Only validate if we have all 3 games with scores and a net profit value
+        if (_games.Count != 3 || !_weekNetProfit.HasValue || _weekNetProfit.Value == 0)
+            return string.Empty;
+
+        // Check if all games have scores entered
+        var allScoresEntered = _games.All(g => _tempScores.ContainsKey(g.Id) && 
+            _tempScores[g.Id].HomeScore >= 0 && _tempScores[g.Id].AwayScore >= 0);
+        
+        if (!allScoresEntered)
+            return string.Empty; // Can't validate until all scores are entered
+
+        // Get bets for the current week (selector's bets)
+        if (_currentWeek == null || _currentUser == null)
+            return string.Empty;
+
+        var bets = BetService.GetUserBetsForWeek(_currentUser.Id, _currentWeek.Id);
+        if (bets.Count != 3)
+            return string.Empty; // Can't validate if bets don't exist yet
+
+        // Count wins and losses based on temp scores
+        int wins = 0;
+        int losses = 0;
+
+        foreach (var game in _games)
+        {
+            var bet = bets.FirstOrDefault(b => b.GameId == game.Id);
+            if (bet == null) continue;
+
+            var tempScore = _tempScores[game.Id];
+            
+            // Create a temporary game object with temp scores to check result
+            var tempGame = new Game
+            {
+                Id = game.Id,
+                GameWeekId = game.GameWeekId,
+                HomeTeam = game.HomeTeam,
+                AwayTeam = game.AwayTeam,
+                BetKind = game.BetKind,
+                OverUnderLine = game.OverUnderLine,
+                Status = GameStatus.Completed,
+                HomeScore = tempScore.HomeScore,
+                AwayScore = tempScore.AwayScore
+            };
+
+            // Check if bet would win or lose
+            var wouldWin = WouldBetWin(bet, tempGame);
+            if (wouldWin)
+                wins++;
+            else
+                losses++;
+        }
+
+        // Validate: if all 3 games are lost, amount must be negative
+        if (losses == 3 && _weekNetProfit.Value > 0)
+        {
+            return "Om alla 3 matcher förlorades, kan vinst/förlust inte vara positivt. Det måste vara negativt (förlust).";
+        }
+
+        // Validate: if all 3 games are won, amount should be positive
+        if (wins == 3 && _weekNetProfit.Value < 0)
+        {
+            return "Om alla 3 matcher vanns, kan vinst/förlust inte vara negativt. Det bör vara positivt (vinst).";
+        }
+
+        return string.Empty;
+    }
+
+    private bool WouldBetWin(Bet bet, Game game)
+    {
+        // Handle exact score predictions
+        if (bet.Prediction == BetType.ExactScore)
+        {
+            if (!bet.PredictedHomeScore.HasValue || !bet.PredictedAwayScore.HasValue)
+                return false;
+            return bet.PredictedHomeScore == game.HomeScore && bet.PredictedAwayScore == game.AwayScore;
+        }
+
+        // Handle win-to-nil bets
+        if (bet.Prediction == BetType.HomeWinToNil)
+        {
+            return game.HomeScore > game.AwayScore && game.AwayScore == 0;
+        }
+
+        if (bet.Prediction == BetType.AwayWinToNil)
+        {
+            return game.AwayScore > game.HomeScore && game.HomeScore == 0;
+        }
+
+        // Handle other bet types (1/X/2, Over/Under)
+        if (!game.ActualResult.HasValue)
+            return false;
+
+        return bet.Prediction == game.ActualResult;
+    }
+}
