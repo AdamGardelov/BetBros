@@ -9,7 +9,7 @@
 <MudText Typo="Typo.h4" GutterBottom="true">Tabell & Statistik</MudText>
 
 <MudGrid>
-    <MudItem xs="12" md="7">
+    <MudItem xs="12">
         <MudCard>
             <MudCardHeader>
                 <CardHeaderContent>
@@ -19,63 +19,78 @@
             <MudCardContent>
                 @if (leaderboard.Any())
                 {
-                    <MudTable Items="@leaderboardItems" Hover="true" Dense="true" Breakpoint="Breakpoint.Sm">
-                        <HeaderContent>
-                            <MudTh>Plac.</MudTh>
-                            <MudTh>Spelare</MudTh>
-                            <MudTh>Total Vinst/Förlust</MudTh>
-                            <MudTh>Spel</MudTh>
-                            <MudTh>Träff %</MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd DataLabel="Plac.">
-                                @if (context.Rank == 1)
-                                {
-                                    <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
-                                }
-                                <strong>#@context.Rank</strong>
-                            </MudTd>
-                            <MudTd DataLabel="Spelare">
-                                <MudText Typo="Typo.body1"><strong>@context.DisplayName</strong></MudText>
-                            </MudTd>
-                            <MudTd DataLabel="Total Vinst/Förlust">
-                                <MudText Typo="Typo.body1" Color="@(context.TotalProfit >= 0 ? Color.Success : Color.Error)">
-                                    <strong>@context.TotalProfit.ToString("N2") kr</strong>
-                                </MudText>
-                            </MudTd>
-                            <MudTd DataLabel="Spel">@context.TotalBets</MudTd>
-                            <MudTd DataLabel="Träff %">
-                                @context.OverallAccuracy.ToString("F1")%
-                            </MudTd>
-                        </RowTemplate>
-                    </MudTable>
+                    @* Desktop Table View *@
+                    <div class="d-none d-md-block">
+                        <MudTable Items="@leaderboardItems" Hover="true" Dense="true">
+                            <HeaderContent>
+                                <MudTh>Plac.</MudTh>
+                                <MudTh>Spelare</MudTh>
+                                <MudTh>Total Vinst/Förlust</MudTh>
+                                <MudTh>Spel</MudTh>
+                                <MudTh>Träff %</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>
+                                    @if (context.Rank == 1)
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
+                                    }
+                                    <strong>#@context.Rank</strong>
+                                </MudTd>
+                                <MudTd>
+                                    <MudText Typo="Typo.body1"><strong>@context.DisplayName</strong></MudText>
+                                </MudTd>
+                                <MudTd>
+                                    <MudText Typo="Typo.body1" Color="@(context.TotalProfit >= 0 ? Color.Success : Color.Error)">
+                                        <strong>@context.TotalProfit.ToString("N2") kr</strong>
+                                    </MudText>
+                                </MudTd>
+                                <MudTd>@context.TotalBets</MudTd>
+                                <MudTd>@context.OverallAccuracy.ToString("F1")%</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </div>
+
+                    @* Mobile Card View *@
+                    <div class="d-md-none">
+                        <MudStack Spacing="2">
+                            @foreach (var item in leaderboardItems)
+                            {
+                                <MudPaper Class="pa-3" Elevation="1">
+                                    <MudGrid AlignItems="Center">
+                                        <MudItem xs="2">
+                                            @if (item.Rank == 1)
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
+                                            }
+                                            <MudText Typo="Typo.h6"><strong>#@item.Rank</strong></MudText>
+                                        </MudItem>
+                                        <MudItem xs="10">
+                                            <MudText Typo="Typo.body1"><strong>@item.DisplayName</strong></MudText>
+                                            <MudGrid Class="mt-2">
+                                                <MudItem xs="12">
+                                                    <MudText Typo="Typo.body2" Color="@(item.TotalProfit >= 0 ? Color.Success : Color.Error)">
+                                                        <strong>@item.TotalProfit.ToString("N2") kr</strong>
+                                                    </MudText>
+                                                </MudItem>
+                                                <MudItem xs="6">
+                                                    <MudText Typo="Typo.caption">Spel: @item.TotalBets</MudText>
+                                                </MudItem>
+                                                <MudItem xs="6">
+                                                    <MudText Typo="Typo.caption">Träff: @item.OverallAccuracy.ToString("F1")%</MudText>
+                                                </MudItem>
+                                            </MudGrid>
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudPaper>
+                            }
+                        </MudStack>
+                    </div>
                 }
                 else
                 {
                     <MudText>Ingen data tillgänglig ännu.</MudText>
                 }
-            </MudCardContent>
-        </MudCard>
-    </MudItem>
-
-    <MudItem xs="12" md="5">
-        <MudCard>
-            <MudCardHeader>
-                <CardHeaderContent>
-                    <MudText Typo="Typo.h6">Spelsystem</MudText>
-                </CardHeaderContent>
-            </MudCardHeader>
-            <MudCardContent>
-                <MudStack Spacing="2">
-                    <MudPaper Class="pa-3" Elevation="0">
-                        <MudText Typo="Typo.body1"><strong>Insats per bet</strong></MudText>
-                        <MudText Typo="Typo.h5" Color="Color.Primary">33.33 kr</MudText>
-                    </MudPaper>
-                    <MudDivider />
-                    <MudText Typo="Typo.caption" Class="mt-2">
-                        Varje vecka satsar väljaren 100kr totalt (33.33kr per match). Vinst beräknas baserat på odds.
-                    </MudText>
-                </MudStack>
             </MudCardContent>
         </MudCard>
     </MudItem>

@@ -9,15 +9,13 @@ public class BetService(IDataStore dataStore) : IBetService
 {
     private const decimal StakePerBet = 100m / 3m; // 33.33kr per bet
 
-    public Bet PlaceBet(int userId, int gameId, BetType prediction, decimal odds, int? predictedHomeScore = null, int? predictedAwayScore = null)
+    public Bet PlaceBet(int userId, int gameId, BetType prediction, int? predictedHomeScore = null, int? predictedAwayScore = null)
     {
         var game = dataStore.GetGameById(gameId);
         if (game == null)
         {
             throw new InvalidOperationException("Game not found");
         }
-
-        // Odds are optional (for reference only, not used for calculation)
 
         // Validate prediction matches the game's bet kind category
         var is1X2Prediction = prediction is BetType.HomeWin or BetType.Draw or BetType.AwayWin;
@@ -44,16 +42,14 @@ public class BetService(IDataStore dataStore) : IBetService
         if (existingBet != null)
         {
             existingBet.Prediction = prediction;
-            existingBet.Odds = odds;
             existingBet.Stake = StakePerBet;
             existingBet.PredictedHomeScore = predictedHomeScore;
             existingBet.PredictedAwayScore = predictedAwayScore;
             existingBet.PlacedAt = DateTime.UtcNow;
-            // Reset scoring since prediction/odds changed
+            // Reset scoring since prediction changed
             existingBet.Status = BetStatus.Pending;
             existingBet.Payout = null;
             existingBet.Profit = null;
-            existingBet.Points = null;
             existingBet.ScoredAt = null;
             return dataStore.UpdateBet(existingBet);
         }
@@ -63,7 +59,6 @@ public class BetService(IDataStore dataStore) : IBetService
             GameId = gameId,
             UserId = userId,
             Prediction = prediction,
-            Odds = odds,
             Stake = StakePerBet,
             PredictedHomeScore = predictedHomeScore,
             PredictedAwayScore = predictedAwayScore,
@@ -166,18 +161,12 @@ public class BetService(IDataStore dataStore) : IBetService
 
     public Dictionary<int, decimal> GetLeaderboard()
     {
-        var bets = dataStore.GetBets();
-        var leaderboard = new Dictionary<int, decimal>();
-
-        foreach (var bet in bets)
-        {
-            if (!bet.Profit.HasValue) continue; // Only count scored bets
-            
-            leaderboard.TryAdd(bet.UserId, 0);
-            leaderboard[bet.UserId] += bet.Profit.Value;
-        }
-
-        return leaderboard.OrderByDescending(kvp => kvp.Value)
+        // Use financial stats (NetProfit from weeks) instead of bet.Profit
+        var financialStats = GetFinancialStats();
+        return financialStats.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value.NetProfit
+        ).OrderByDescending(kvp => kvp.Value)
             .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
     }
 
@@ -193,7 +182,6 @@ public class BetService(IDataStore dataStore) : IBetService
             var scoredBets = userBets.Where(b => b.ScoredAt.HasValue).ToList();
 
             var totalBets = scoredBets.Count;
-            var totalPoints = scoredBets.Sum(b => b.Points ?? 0);
             var totalWins = scoredBets.Count(b => b.Status == BetStatus.Won);
 
             var accuracy = totalBets > 0 ? (decimal)totalWins / totalBets * 100 : 0;
@@ -201,7 +189,7 @@ public class BetService(IDataStore dataStore) : IBetService
             stats[user.Id] = new UserStats
             {
                 TotalBets = totalBets,
-                TotalPoints = totalPoints,
+                TotalPoints = 0, // Points system deprecated
                 TotalWins = totalWins,
                 AccuracyPercent = accuracy
             };
@@ -232,8 +220,13 @@ public class BetService(IDataStore dataStore) : IBetService
 
             // Calculate financial stats
             var totalBet = userWeeks.Count * 100m; // 100kr per week
-            var totalWon = userWeeks.Where(w => w.NetProfit.HasValue && w.NetProfit.Value > 0).Sum(w => w.NetProfit!.Value);
-            var totalLost = userWeeks.Where(w => w.NetProfit.HasValue && w.NetProfit.Value < 0).Sum(w => Math.Abs(w.NetProfit!.Value));
+            // NetProfit is the profit/loss amount entered by user
+            // TotalWon: Only count positive weeks (just the profit amount, not bet + profit)
+            var totalWon = userWeeks.Where(w => w.NetProfit.HasValue && w.NetProfit.Value > 0)
+                .Sum(w => w.NetProfit!.Value);
+            // TotalLost: Only count negative weeks (the amount lost)
+            var totalLost = userWeeks.Where(w => w.NetProfit.HasValue && w.NetProfit.Value < 0)
+                .Sum(w => Math.Abs(w.NetProfit!.Value));
             var netProfit = userWeeks.Where(w => w.NetProfit.HasValue).Sum(w => w.NetProfit!.Value);
             var roi = totalBet > 0 ? (netProfit / totalBet) * 100 : 0;
 
@@ -241,6 +234,7 @@ public class BetService(IDataStore dataStore) : IBetService
             {
                 TotalBet = totalBet,
                 TotalWon = totalWon,
+                TotalLost = totalLost,
                 NetProfit = netProfit,
                 RoiPercent = roi,
                 WeeksParticipated = userWeeks.Count
@@ -255,7 +249,9 @@ public class BetService(IDataStore dataStore) : IBetService
         var financialStats = GetFinancialStats();
         var totalBet = financialStats.Values.Sum(s => s.TotalBet);
         var totalWon = financialStats.Values.Sum(s => s.TotalWon);
-        var netProfit = totalWon - totalBet;
+        var totalLost = financialStats.Values.Sum(s => s.TotalLost);
+        // NetProfit is already calculated correctly in GetFinancialStats (sum of all NetProfit values)
+        var netProfit = financialStats.Values.Sum(s => s.NetProfit);
         var roi = totalBet > 0 ? (netProfit / totalBet) * 100 : 0;
 
         var gameWeeks = dataStore.GetGameWeeks();
@@ -271,6 +267,7 @@ public class BetService(IDataStore dataStore) : IBetService
         {
             TotalBet = totalBet,
             TotalWon = totalWon,
+            TotalLost = totalLost,
             NetProfit = netProfit,
             RoiPercent = roi,
             TotalWeeks = completedWeeks

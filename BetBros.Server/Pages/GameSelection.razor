@@ -1,6 +1,7 @@
 @page "/valj-matcher"
 @using BetBros.Server.Enums
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Web
 @attribute [Authorize]
 @inject IAuthService AuthService
 @inject IGameWeekService GameWeekService
@@ -38,18 +39,20 @@ else
         </MudText>
 
         <MudPaper Class="pa-4 mb-4">
-            <MudForm @ref="_form" Model="@_newGame">
+            <MudForm @ref="_form" Model="@_newGame" @key="_formKey">
                 <MudTextField @bind-Value="_newGame.HomeTeam"
                               Label="Hemmalag"
                               Variant="Variant.Outlined"
                               Required="true"
-                              Class="mb-4" />
+                              Class="mb-4"
+                              OnKeyDown="HandleKeyDown" />
 
                 <MudTextField @bind-Value="_newGame.AwayTeam"
                               Label="Bortalag"
                               Variant="Variant.Outlined"
                               Required="true"
-                              Class="mb-4" />
+                              Class="mb-4"
+                              OnKeyDown="HandleKeyDown" />
 
                 <MudSelect @bind-Value="_newGame.BetKind"
                            Label="Speltyp"
@@ -71,7 +74,8 @@ else
                                      Min="0.5m"
                                      Step="0.5m"
                                      Class="mb-4"
-                                     HelperText="T.ex. 2.5 för över/under 2.5 mål" />
+                                     HelperText="T.ex. 2.5 för över/under 2.5 mål"
+                                     OnKeyDown="HandleKeyDown" />
                 }
 
                 @if (!string.IsNullOrEmpty(_errorMessage))
@@ -137,7 +141,7 @@ else
             <strong>Steg 2:</strong> Lägg dina spel på varje match
         </MudText>
 
-        <MudStack Spacing="4">
+        <MudStack Spacing="4" Class="mb-8">
             @foreach (var game in _existingGames)
             {
                 var userBet = _existingBets.FirstOrDefault(b => b.GameId == game.Id);
@@ -205,20 +209,6 @@ else
                                         </MudButton>
                                     </MudItem>
                                 </MudGrid>
-                                @if (GetTempBet(game.Id).HasValue)
-                                {
-                                    @if (!_tempOdds.ContainsKey(game.Id))
-                                    {
-                                        _tempOdds[game.Id] = null;
-                                    }
-                                    <MudNumericField @bind-Value="@_tempOdds[game.Id]"
-                                                     Label="Odds (valfritt)"
-                                                     Variant="Variant.Outlined"
-                                                     Min="1.01m"
-                                                     Step="0.01m"
-                                                     HelperText="Ange decimal odds för referens (används inte för beräkning)"
-                                                     Class="mb-4" />
-                                }
                             }
 
                             @if (isOverUnderGame)
@@ -242,20 +232,6 @@ else
                                         </MudButton>
                                     </MudItem>
                                 </MudGrid>
-                                @if (GetTempBet(game.Id).HasValue)
-                                {
-                                    @if (!_tempOdds.ContainsKey(game.Id))
-                                    {
-                                        _tempOdds[game.Id] = null;
-                                    }
-                                    <MudNumericField @bind-Value="@_tempOdds[game.Id]"
-                                                     Label="Odds (valfritt)"
-                                                     Variant="Variant.Outlined"
-                                                     Min="1.01m"
-                                                     Step="0.01m"
-                                                     HelperText="Ange decimal odds för referens (används inte för beräkning)"
-                                                     Class="mb-4" />
-                                }
                             }
 
                             @if (isExactScoreGame)
@@ -263,10 +239,6 @@ else
                                 @if (!_tempScores.ContainsKey(game.Id))
                                 {
                                     _tempScores[game.Id] = new ScoreModel();
-                                }
-                                @if (!_tempOdds.ContainsKey(game.Id))
-                                {
-                                    _tempOdds[game.Id] = null;
                                 }
                                 <MudText Typo="Typo.h6" Class="mb-2">Ange exakt resultat</MudText>
                                 <MudGrid Class="mb-4">
@@ -288,13 +260,6 @@ else
                                                          Required="true" />
                                     </MudItem>
                                 </MudGrid>
-                                <MudNumericField @bind-Value="@_tempOdds[game.Id]"
-                                                 Label="Odds (valfritt)"
-                                                 Variant="Variant.Outlined"
-                                                 Min="1.01m"
-                                                 Step="0.01m"
-                                                 HelperText="Ange decimal odds för referens (används inte för beräkning)"
-                                                 Class="mb-4" />
                             }
                     </MudCardContent>
                 </MudCard>
@@ -303,19 +268,21 @@ else
 
         @if (_existingGames.Count >= 3)
         {
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Success"
-                       OnClick="@SubmitAllBets"
-                       Disabled="!CanSubmitAllBets() || _isSaving"
-                       Size="Size.Large"
-                       FullWidth="true"
-                       Class="mt-4">
-                @if (_isSaving)
-                {
-                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                }
-                Spara Alla Spel
-            </MudButton>
+            <div class="mb-16 pb-8">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Success"
+                           OnClick="@SubmitAllBets"
+                           Disabled="!CanSubmitAllBets() || _isSaving"
+                           Size="Size.Large"
+                           FullWidth="true"
+                           Class="mt-4">
+                    @if (_isSaving)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Spara Alla Spel
+                </MudButton>
+            </div>
         }
     }
 }
@@ -330,10 +297,10 @@ else
     private bool _isSaving;
     private string _errorMessage = string.Empty;
     private readonly int? _editingGameId = null;
+    private int _formKey = 0;
 
     private readonly Dictionary<int, BetType?> _tempBets = new();
     private readonly Dictionary<int, ScoreModel> _tempScores = new();
-    private readonly Dictionary<int, decimal?> _tempOdds = new();
 
     private class NewGameModel
     {
@@ -385,17 +352,12 @@ else
                 {
                     _tempScores[game.Id] = new ScoreModel();
                 }
-                if (!_tempOdds.ContainsKey(game.Id))
-                {
-                    _tempOdds[game.Id] = null;
-                }
             }
 
             // Load existing bets into temp storage
             foreach (var bet in _existingBets)
             {
                 _tempBets[bet.GameId] = bet.Prediction;
-                _tempOdds[bet.GameId] = bet.Odds;
 
                 if (bet.Prediction == BetType.ExactScore && bet.PredictedHomeScore.HasValue && bet.PredictedAwayScore.HasValue)
                 {
@@ -414,29 +376,49 @@ else
         }
     }
 
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !_isSaving)
+        {
+            // Use InvokeAsync to ensure UI state is updated before proceeding
+            await InvokeAsync(async () =>
+            {
+                // Small delay to ensure form binding is complete
+                await Task.Delay(100);
+                StateHasChanged();
+                await AddGame();
+            });
+        }
+    }
+
     private async Task AddGame()
     {
         _errorMessage = string.Empty;
+        StateHasChanged(); // Ensure UI is updated
 
         if (string.IsNullOrWhiteSpace(_newGame.HomeTeam))
         {
             _errorMessage = "Hemmalag måste anges";
+            StateHasChanged();
             return;
         }
 
         if (string.IsNullOrWhiteSpace(_newGame.AwayTeam))
         {
             _errorMessage = "Bortalag måste anges";
+            StateHasChanged();
             return;
         }
 
         if (_newGame.BetKind == BetType.OverOrUnder && !_newGame.OverUnderLine.HasValue)
         {
             _errorMessage = "Över/Under linje måste anges för denna speltyp";
+            StateHasChanged();
             return;
         }
 
         _isSaving = true;
+        StateHasChanged();
 
         try
         {
@@ -450,11 +432,14 @@ else
 
             Snackbar.Add($"Match tillagd: {_newGame.HomeTeam} vs {_newGame.AwayTeam}", Severity.Success);
 
-            // Reset form
+            // Reset form - create new instance and increment key to force re-render
             _newGame = new NewGameModel { BetKind = BetType.HomeWin, OverUnderLine = 2.5m };
+            _errorMessage = string.Empty;
+            _formKey++; // Force form to re-render
 
             // Reload games
             await LoadData();
+            await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
         {
@@ -499,12 +484,12 @@ else
         if (_currentUser == null || !_existingGames.Any())
             return false;
 
-        // Check if all games have valid bets and odds
+        // Check if all games have valid bets
         foreach (var game in _existingGames)
         {
             if (game.BetKind == BetType.ExactScore)
             {
-                // For exact score, need scores and odds to be set
+                // For exact score, need scores to be set
                 if (!_tempScores.ContainsKey(game.Id))
                     return false;
             }
@@ -514,8 +499,6 @@ else
                 if (!_tempBets.ContainsKey(game.Id) || !_tempBets[game.Id].HasValue)
                     return false;
             }
-            
-            // Odds are optional now (not used for calculation)
         }
 
         return true;
@@ -540,18 +523,16 @@ else
                 {
                     var existingBet = _existingBets.FirstOrDefault(b => b.GameId == game.Id);
                     var hasExistingBet = existingBet != null;
-
-                    var odds = _tempOdds.ContainsKey(game.Id) ? _tempOdds[game.Id] : null;
                     
                     if (game.BetKind == BetType.ExactScore)
                     {
                         var scores = _tempScores[game.Id];
-                        BetService.PlaceBet(_currentUser.Id, game.Id, BetType.ExactScore, odds ?? 1.0m, scores.HomeScore, scores.AwayScore);
+                        BetService.PlaceBet(_currentUser.Id, game.Id, BetType.ExactScore, scores.HomeScore, scores.AwayScore);
                     }
                     else
                     {
                         var prediction = _tempBets[game.Id]!.Value;
-                        BetService.PlaceBet(_currentUser.Id, game.Id, prediction, odds ?? 1.0m);
+                        BetService.PlaceBet(_currentUser.Id, game.Id, prediction);
                     }
 
                     if (hasExistingBet)

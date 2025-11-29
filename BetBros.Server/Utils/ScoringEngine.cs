@@ -10,15 +10,7 @@ public static class ScoringEngine
         if (game.Status != GameStatus.Completed || !game.HomeScore.HasValue || !game.AwayScore.HasValue)
             return (BetStatus.Pending, null, null);
 
-        // Need odds and stake to calculate payout
-        if (!bet.Odds.HasValue || bet.Stake == 0)
-            return (BetStatus.Pending, null, null);
-
-        var odds = bet.Odds.Value;
-        var stake = bet.Stake;
         BetStatus status;
-        decimal payout;
-        decimal profit;
 
         // Handle exact score predictions
         if (bet.Prediction == BetType.ExactScore)
@@ -29,10 +21,8 @@ public static class ScoringEngine
             var isExactMatch = bet.PredictedHomeScore == game.HomeScore &&
                               bet.PredictedAwayScore == game.AwayScore;
             status = isExactMatch ? BetStatus.Won : BetStatus.Lost;
-            payout = status == BetStatus.Won ? stake * odds : 0;
-            profit = payout - stake;
 
-            return (status, payout, profit);
+            return (status, null, null);
         }
 
         // Handle win-to-nil bets
@@ -40,28 +30,57 @@ public static class ScoringEngine
         {
             var isWinToNil = game.HomeScore > game.AwayScore && game.AwayScore == 0;
             status = isWinToNil ? BetStatus.Won : BetStatus.Lost;
-            payout = status == BetStatus.Won ? stake * odds : 0;
-            profit = payout - stake;
-            return (status, payout, profit);
+            return (status, null, null);
         }
 
         if (bet.Prediction == BetType.AwayWinToNil)
         {
             var isWinToNil = game.AwayScore > game.HomeScore && game.HomeScore == 0;
             status = isWinToNil ? BetStatus.Won : BetStatus.Lost;
-            payout = status == BetStatus.Won ? stake * odds : 0;
-            profit = payout - stake;
-            return (status, payout, profit);
+            return (status, null, null);
         }
 
-        // Handle other bet types (1/X/2, Over/Under)
+        // Handle Over/Under bets explicitly
+        if (bet.Prediction == BetType.Over || bet.Prediction == BetType.Under)
+        {
+            if (game.BetKind != BetType.OverOrUnder || !game.OverUnderLine.HasValue)
+                return (BetStatus.Pending, null, null);
+
+            var totalGoals = game.HomeScore.Value + game.AwayScore.Value;
+            var actualResult = totalGoals > game.OverUnderLine.Value ? BetType.Over : BetType.Under;
+            status = bet.Prediction == actualResult ? BetStatus.Won : BetStatus.Lost;
+            return (status, null, null);
+        }
+
+        // Handle 1/X/2 bets explicitly
+        // For regular HomeWin/AwayWin bets, they should also win if the result is a win-to-nil
+        if (bet.Prediction == BetType.HomeWin)
+        {
+            var isHomeWin = game.HomeScore > game.AwayScore;
+            status = isHomeWin ? BetStatus.Won : BetStatus.Lost;
+            return (status, null, null);
+        }
+
+        if (bet.Prediction == BetType.AwayWin)
+        {
+            var isAwayWin = game.AwayScore > game.HomeScore;
+            status = isAwayWin ? BetStatus.Won : BetStatus.Lost;
+            return (status, null, null);
+        }
+
+        if (bet.Prediction == BetType.Draw)
+        {
+            var isDraw = game.HomeScore == game.AwayScore;
+            status = isDraw ? BetStatus.Won : BetStatus.Lost;
+            return (status, null, null);
+        }
+
+        // Handle other bet types (fallback)
         if (!game.ActualResult.HasValue)
             return (BetStatus.Pending, null, null);
 
         status = bet.Prediction == game.ActualResult ? BetStatus.Won : BetStatus.Lost;
-        payout = status == BetStatus.Won ? stake * odds : 0;
-        profit = payout - stake;
 
-        return (status, payout, profit);
+        return (status, null, null);
     }
 }

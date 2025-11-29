@@ -5,7 +5,7 @@ namespace BetBros.Server.Services.Interfaces;
 
 public interface IBetService
 {
-    Bet PlaceBet(int userId, int gameId, BetType prediction, decimal odds, int? predictedHomeScore = null, int? predictedAwayScore = null);
+    Bet PlaceBet(int userId, int gameId, BetType prediction, int? predictedHomeScore = null, int? predictedAwayScore = null);
     List<Bet> GetUserBetsForWeek(int userId, int gameWeekId);
     List<BetResult> GetAllBetResults(int? userId = null, int? gameWeekId = null);
     void ScoreCompletedGames();  // Calculates points for completed games
@@ -27,7 +27,8 @@ public class UserStats
 public class FinancialStats
 {
     public decimal TotalBet { get; set; }      // Total amount bet (100kr per week)
-    public decimal TotalWon { get; set; }      // Total winnings
+    public decimal TotalWon { get; set; }      // Total winnings (only positive weeks)
+    public decimal TotalLost { get; set; }      // Total losses (only negative weeks)
     public decimal NetProfit { get; set; }     // Won - Bet
     public decimal RoiPercent { get; set; }   // ROI percentage
     public int WeeksParticipated { get; set; } // Number of weeks they placed bets
@@ -36,7 +37,8 @@ public class FinancialStats
 public class FinancialSummary
 {
     public decimal TotalBet { get; set; }      // Sum of all bets
-    public decimal TotalWon { get; set; }      // Sum of all winnings
+    public decimal TotalWon { get; set; }      // Sum of all winnings (only positive weeks)
+    public decimal TotalLost { get; set; }     // Sum of all losses (only negative weeks)
     public decimal NetProfit { get; set; }     // Total won - total bet
     public decimal RoiPercent { get; set; }    // Overall ROI
     public int TotalWeeks { get; set; }        // Total number of weeks

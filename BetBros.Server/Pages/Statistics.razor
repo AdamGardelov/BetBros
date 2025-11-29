@@ -39,8 +39,16 @@ else
                         <MudItem xs="12" sm="6" md="3">
                             <MudPaper Class="pa-3" Elevation="2">
                                 <MudText Typo="Typo.caption">Totalt Vunnet</MudText>
-                                <MudText Typo="Typo.h5" Color="Color.Primary">
+                                <MudText Typo="Typo.h5" Color="Color.Success">
                                     <strong>@_summary.TotalWon.ToString("N0") kr</strong>
+                                </MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudPaper Class="pa-3" Elevation="2">
+                                <MudText Typo="Typo.caption">Totalt Förlorat</MudText>
+                                <MudText Typo="Typo.h5" Color="Color.Error">
+                                    <strong>@_summary.TotalLost.ToString("N0") kr</strong>
                                 </MudText>
                             </MudPaper>
                         </MudItem>
@@ -142,7 +150,7 @@ else
         public string DisplayName { get; set; } = string.Empty;
         public decimal TotalBet { get; set; }
         public decimal TotalWon { get; set; }
-        public decimal TotalLost => Math.Max(0, TotalBet - TotalWon);
+        public decimal TotalLost { get; set; }
         public decimal NetProfit { get; set; }
         public decimal RoiPercent { get; set; }
         public int WeeksParticipated { get; set; }
@@ -171,6 +179,7 @@ else
                     DisplayName = user.DisplayName,
                     TotalBet = stat.Value.TotalBet,
                     TotalWon = stat.Value.TotalWon,
+                    TotalLost = stat.Value.TotalLost,
                     NetProfit = stat.Value.NetProfit,
                     RoiPercent = stat.Value.RoiPercent,
                     WeeksParticipated = stat.Value.WeeksParticipated

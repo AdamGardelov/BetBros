@@ -103,11 +103,6 @@
                                                 {
                                                     <MudText Typo="Typo.body2"><strong>Spel:</strong></MudText>
                                                     <MudText>@GetBetDisplayText(bet)</MudText>
-                                                    @if (bet.Odds.HasValue)
-                                                    {
-                                                        <MudText Typo="Typo.body2">Odds: @bet.Odds.Value.ToString("F2")</MudText>
-                                                        <MudText Typo="Typo.body2">Insats: @bet.Stake.ToString("N2") kr</MudText>
-                                                    }
 
                                                     @if (game.Status == GameStatus.Completed && bet.ScoredAt.HasValue)
                                                     {

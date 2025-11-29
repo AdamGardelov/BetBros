@@ -1,7 +1,9 @@
 @page "/login"
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
     <MudPaper Elevation="4" Class="pa-8">
@@ -25,6 +27,10 @@
                           HelperText="Ange ditt lösenord"
                           Class="mt-4"
                           OnKeyDown="HandleKeyDown" />
+
+            <MudCheckBox @bind-Value="rememberMe" 
+                       Label="Remember me" 
+                       Class="mt-4" />
 
             @if (!string.IsNullOrEmpty(errorMessage))
             {
@@ -62,9 +68,25 @@
     private string password = string.Empty;
     private string errorMessage = string.Empty;
     private bool isLoading = false;
+    private bool rememberMe = false;
 
     protected override async Task OnInitializedAsync()
     {
+        // Load remembered username from localStorage
+        try
+        {
+            var rememberedUsername = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "betbros_remembered_username");
+            if (!string.IsNullOrEmpty(rememberedUsername))
+            {
+                username = rememberedUsername;
+                rememberMe = true;
+            }
+        }
+        catch
+        {
+            // localStorage might not be available, ignore
+        }
+
         // Disabled auto-login to prevent redirect loops
         // Uncomment after authentication is working:
         // #if DEBUG
@@ -84,21 +106,70 @@
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter")
+        if (e.Key == "Enter" && !isLoading)
         {
-            await HandleLogin();
+            // Use InvokeAsync to ensure UI state is updated before proceeding
+            await InvokeAsync(async () =>
+            {
+                // Small delay to ensure form binding is complete
+                await Task.Delay(100);
+                StateHasChanged();
+                await HandleLogin();
+            });
         }
     }
 
     private async Task HandleLogin()
     {
+        if (isLoading) return; // Prevent double submission
+        
+        // Check if fields have values (more reliable than form validation on first Enter)
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+        {
+            // Still validate form to show validation errors
+            await form.Validate();
+            return;
+        }
+        
+        // Validate form
+        await form.Validate();
+        if (!form.IsValid)
+        {
+            return;
+        }
+
         isLoading = true;
         errorMessage = string.Empty;
+        StateHasChanged(); // Update UI to show loading state
 
-        var user = await AuthService.LoginAsync(username, password);
+        // Clear password field after reading (for security)
+        var passwordToCheck = password;
+        password = string.Empty;
+
+        var user = await AuthService.LoginAsync(username, passwordToCheck);
 
         if (user != null)
         {
+            // Handle "Remember me" functionality
+            try
+            {
+                if (rememberMe)
+                {
+                    // Store username in localStorage
+                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", "betbros_remembered_username", username);
+                }
+                else
+                {
+                    // Remove from localStorage if unchecked
+                    await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "betbros_remembered_username");
+                }
+            }
+            catch
+            {
+                // localStorage might not be available, ignore
+            }
+
+            username = string.Empty; // Clear username on success
             Navigation.NavigateTo("/");
         }
         else
@@ -107,5 +178,6 @@
         }
 
         isLoading = false;
+        StateHasChanged();
     }
 }

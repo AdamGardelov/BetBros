@@ -125,33 +125,35 @@ else
             </MudPaper>
         }
 
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   OnClick="@SubmitAllResults"
-                   Disabled="!CanSubmitAllResults() || _isSaving"
-                   Size="Size.Large"
-                   FullWidth="true"
-                   Class="mt-4">
-            @if (_isSaving)
-            {
-                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-            }
+        <div class="mb-16 pb-8">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="@SubmitAllResults"
+                       Disabled="!CanSubmitAllResults() || _isSaving"
+                       Size="Size.Large"
+                       FullWidth="true"
+                       Class="mt-4">
+                @if (_isSaving)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                @if (_games.All(g => g.HomeScore.HasValue && g.AwayScore.HasValue))
+                {
+                    <text>Uppdatera Alla Resultat</text>
+                }
+                else
+                {
+                    <text>Spara Alla Resultat</text>
+                }
+            </MudButton>
+
             @if (_games.All(g => g.HomeScore.HasValue && g.AwayScore.HasValue))
             {
-                <text>Uppdatera Alla Resultat</text>
+                <MudAlert Severity="Severity.Success" Class="mt-4">
+                    Alla resultat för denna vecka är inlagda!
+                </MudAlert>
             }
-            else
-            {
-                <text>Spara Alla Resultat</text>
-            }
-        </MudButton>
-
-        @if (_games.All(g => g.HomeScore.HasValue && g.AwayScore.HasValue))
-        {
-            <MudAlert Severity="Severity.Success" Class="mt-4">
-                Alla resultat för denna vecka är inlagda!
-            </MudAlert>
-        }
+        </div>
     }
 }
 
@@ -471,6 +473,9 @@ else
 
     private bool WouldBetWin(Bet bet, Game game)
     {
+        if (!game.HomeScore.HasValue || !game.AwayScore.HasValue)
+            return false;
+
         // Handle exact score predictions
         if (bet.Prediction == BetType.ExactScore)
         {
@@ -490,7 +495,35 @@ else
             return game.AwayScore > game.HomeScore && game.HomeScore == 0;
         }
 
-        // Handle other bet types (1/X/2, Over/Under)
+        // Handle Over/Under bets explicitly
+        if (bet.Prediction == BetType.Over || bet.Prediction == BetType.Under)
+        {
+            if (game.BetKind != BetType.OverOrUnder || !game.OverUnderLine.HasValue)
+                return false;
+
+            var totalGoals = game.HomeScore.Value + game.AwayScore.Value;
+            var actualResult = totalGoals > game.OverUnderLine.Value ? BetType.Over : BetType.Under;
+            return bet.Prediction == actualResult;
+        }
+
+        // Handle 1/X/2 bets explicitly
+        // For regular HomeWin/AwayWin bets, they should also win if the result is a win-to-nil
+        if (bet.Prediction == BetType.HomeWin)
+        {
+            return game.HomeScore > game.AwayScore;
+        }
+
+        if (bet.Prediction == BetType.AwayWin)
+        {
+            return game.AwayScore > game.HomeScore;
+        }
+
+        if (bet.Prediction == BetType.Draw)
+        {
+            return game.HomeScore == game.AwayScore;
+        }
+
+        // Fallback to ActualResult for any other bet types
         if (!game.ActualResult.HasValue)
             return false;
 
