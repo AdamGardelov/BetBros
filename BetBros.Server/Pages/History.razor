@@ -224,8 +224,9 @@ else
         _allUsers = DataStore.GetUsers();
         _allResults = BetService.GetAllBetResults();
 
-        // Default to current user
-        _selectedUserId = _currentUser.Id;
+        // Default to "show all" for both filters
+        _selectedWeekId = 0;
+        _selectedUserId = 0;
 
         FilterResults();
     }

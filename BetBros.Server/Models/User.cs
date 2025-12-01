@@ -7,5 +7,6 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public int RotationOrder { get; set; }  // 0-3 for the 4 users
+    public bool IsAdmin { get; set; }
     public DateTime CreatedAt { get; set; }
 }

@@ -15,7 +15,7 @@ public class InMemoryDataStore : IDataStore
     private int _nextGameId = 1;
     private int _nextBetId = 1;
     
-    private readonly DateTime _weekOneStartDate = new(2025, 11, 28, 0, 0, 0, DateTimeKind.Utc);
+    private readonly DateTime _weekOneStartDate = new(2025, 11, 24, 0, 0, 0, DateTimeKind.Utc);
 
     public InMemoryDataStore()
     {
@@ -38,6 +38,7 @@ public class InMemoryDataStore : IDataStore
                 PasswordHash = PasswordHasher.HashPassword("password"),
                 DisplayName = "Gärdelöv",
                 RotationOrder = 1,
+                IsAdmin = true,
                 CreatedAt = DateTime.UtcNow
             },
             new User

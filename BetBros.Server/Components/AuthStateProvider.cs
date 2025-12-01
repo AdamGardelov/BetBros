@@ -16,11 +16,19 @@ public class AuthStateProvider : AuthenticationStateProvider
 
     public void MarkUserAsAuthenticated(User user)
     {
-        var identity = new ClaimsIdentity([
+        var claims = new List<Claim>
+        {
             new Claim(ClaimTypes.Name, user.Username),
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim("DisplayName", user.DisplayName)
-        ], "apiauth");
+        };
+
+        if (user.IsAdmin)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+        }
+
+        var identity = new ClaimsIdentity(claims, "apiauth");
 
         _currentUser = new ClaimsPrincipal(identity);
 

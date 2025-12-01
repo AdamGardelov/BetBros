@@ -184,12 +184,11 @@ public class BetService(IDataStore dataStore) : IBetService
             var totalBets = scoredBets.Count;
             var totalWins = scoredBets.Count(b => b.Status == BetStatus.Won);
 
-            var accuracy = totalBets > 0 ? (decimal)totalWins / totalBets * 100 : 0;
+            var accuracy = totalBets > 0 ? (decimal)totalWins / totalBets * 200 : 0;
 
             stats[user.Id] = new UserStats
             {
                 TotalBets = totalBets,
-                TotalPoints = 0, // Points system deprecated
                 TotalWins = totalWins,
                 AccuracyPercent = accuracy
             };

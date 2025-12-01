@@ -28,6 +28,11 @@ public class AuthService(IDataStore dataStore, AuthenticationStateProvider authS
                 new("DisplayName", user.DisplayName)
             };
 
+            if (user.IsAdmin)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+            }
+
             var identity = new ClaimsIdentity(claims, "BetBros");
             var principal = new ClaimsPrincipal(identity);
 

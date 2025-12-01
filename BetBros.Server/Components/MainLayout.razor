@@ -35,6 +35,12 @@
                     <MudNavLink Href="/historik" Icon="@Icons.Material.Filled.History">Historik</MudNavLink>
                     <MudNavLink Href="/tabell" Icon="@Icons.Material.Filled.Leaderboard">Tabell</MudNavLink>
                     <MudNavLink Href="/statistik" Icon="@Icons.Material.Filled.Analytics">Statistik</MudNavLink>
+                    
+                    <AuthorizeView Roles="Admin" Context="adminContext">
+                        <Authorized>
+                            <MudNavLink Href="/admin" Icon="@Icons.Material.Filled.AdminPanelSettings">Admin</MudNavLink>
+                        </Authorized>
+                    </AuthorizeView>
                 </MudNavMenu>
             </MudDrawer>
         </Authorized>
