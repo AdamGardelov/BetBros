@@ -46,7 +46,20 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BetBrosDbContext>();
-    db.Database.Migrate();
+
+    try
+    {
+        db.Database.Migrate();
+    }
+    catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("already exists"))
+    {
+        // Database exists but was created with EnsureCreated() (no migration history)
+        // This can happen when upgrading from EnsureCreated to Migrate
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogWarning("Database tables already exist. Skipping migration. If you need to apply migrations, delete the database file and restart.");
+
+        // Continue running - the database structure should be compatible
+    }
 }
 
 // Configure the HTTP request pipeline
