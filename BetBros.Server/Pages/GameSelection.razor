@@ -9,6 +9,7 @@
 @inject IBetService BetService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IDataStore DataStore
 
 <PageTitle>Välj Matcher & Spela - BetBros</PageTitle>
 
@@ -40,19 +41,27 @@ else
 
         <MudPaper Class="pa-4 mb-4">
             <MudForm @ref="_form" Model="@_newGame" @key="_formKey">
-                <MudTextField @bind-Value="_newGame.HomeTeam"
-                              Label="Hemmalag"
-                              Variant="Variant.Outlined"
-                              Required="true"
-                              Class="mb-4"
-                              OnKeyDown="HandleKeyDown" />
+                <MudAutocomplete T="string"
+                               Label="Hemmalag"
+                               @bind-Value="_newGame.HomeTeam"
+                               SearchFunc="@SearchTeams"
+                               CoerceValue="true"
+                               ResetValueOnEmptyText="true"
+                               Variant="Variant.Outlined"
+                               Required="true"
+                               Class="mb-4"
+                               OnKeyDown="@HandleKeyDown" />
 
-                <MudTextField @bind-Value="_newGame.AwayTeam"
-                              Label="Bortalag"
-                              Variant="Variant.Outlined"
-                              Required="true"
-                              Class="mb-4"
-                              OnKeyDown="HandleKeyDown" />
+                <MudAutocomplete T="string"
+                               Label="Bortalag"
+                               @bind-Value="_newGame.AwayTeam"
+                               SearchFunc="@SearchTeams"
+                               CoerceValue="true"
+                               ResetValueOnEmptyText="true"
+                               Variant="Variant.Outlined"
+                               Required="true"
+                               Class="mb-4"
+                               OnKeyDown="@HandleKeyDown" />
 
                 <MudSelect @bind-Value="_newGame.BetKind"
                            Label="Speltyp"
@@ -298,6 +307,7 @@ else
     private string _errorMessage = string.Empty;
     private readonly int? _editingGameId = null;
     private int _formKey = 0;
+    private List<string> _allTeamNames = [];
 
     private readonly Dictionary<int, BetType?> _tempBets = new();
     private readonly Dictionary<int, ScoreModel> _tempScores = new();
@@ -344,6 +354,7 @@ else
 
             _existingGames = GameService.GetGamesForWeek(_currentWeek.Id);
             _existingBets = BetService.GetUserBetsForWeek(_currentUser.Id, _currentWeek.Id);
+            _allTeamNames = DataStore.GetTeams().Select(t => t.Name).OrderBy(n => n).ToList();
 
             // Initialize temp storage for all games
             foreach (var game in _existingGames)
@@ -419,6 +430,9 @@ else
 
         _isSaving = true;
         StateHasChanged();
+
+        EnsureTeamExists(_newGame.HomeTeam);
+        EnsureTeamExists(_newGame.AwayTeam);
 
         try
         {
@@ -586,5 +600,25 @@ else
             BetType.ExactScore => "Exakt Resultat",
             _ => betKind.ToString()
         };
+    }
+
+    private async Task<IEnumerable<string>> SearchTeams(string value, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(value))
+            return _allTeamNames;
+        return _allTeamNames.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private void EnsureTeamExists(string teamName)
+    {
+        if (string.IsNullOrWhiteSpace(teamName)) return;
+        
+        var exists = _allTeamNames.Any(t => t.Equals(teamName, StringComparison.InvariantCultureIgnoreCase));
+        if (!exists)
+        {
+            DataStore.AddTeam(new Team { Name = teamName, League = "Unknown" });
+            _allTeamNames.Add(teamName);
+            _allTeamNames.Sort();
+        }
     }
 }

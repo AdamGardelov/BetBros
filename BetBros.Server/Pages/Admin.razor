@@ -94,17 +94,25 @@ else
         <MudPaper Class="pa-4 mb-4">
             <MudText Typo="Typo.h6" Class="mb-4">Lägg till Match med Resultat</MudText>
             <MudForm @ref="_form" Model="@_newGame" @key="_formKey">
-                <MudTextField @bind-Value="_newGame.HomeTeam"
-                              Label="Hemmalag"
-                              Variant="Variant.Outlined"
-                              Required="true"
-                              Class="mb-4" />
+                <MudAutocomplete T="string"
+                               Label="Hemmalag"
+                               @bind-Value="_newGame.HomeTeam"
+                               SearchFunc="@SearchTeams"
+                               CoerceValue="true"
+                               ResetValueOnEmptyText="true"
+                               Variant="Variant.Outlined"
+                               Required="true"
+                               Class="mb-4" />
 
-                <MudTextField @bind-Value="_newGame.AwayTeam"
-                              Label="Bortalag"
-                              Variant="Variant.Outlined"
-                              Required="true"
-                              Class="mb-4" />
+                <MudAutocomplete T="string"
+                               Label="Bortalag"
+                               @bind-Value="_newGame.AwayTeam"
+                               SearchFunc="@SearchTeams"
+                               CoerceValue="true"
+                               ResetValueOnEmptyText="true"
+                               Variant="Variant.Outlined"
+                               Required="true"
+                               Class="mb-4" />
 
                 <MudSelect @bind-Value="_newGame.BetKind"
                            Label="Speltyp"
@@ -339,16 +347,24 @@ else
                                 <MudText Typo="Typo.h6" Class="mb-3">Redigera Match</MudText>
                                 <MudGrid>
                                     <MudItem xs="12" sm="6">
-                                        <MudTextField @bind-Value="_editingGame.HomeTeam"
-                                                      Label="Hemmalag"
-                                                      Variant="Variant.Outlined"
-                                                      Required="true" />
+                                        <MudAutocomplete T="string"
+                                                       Label="Hemmalag"
+                                                       @bind-Value="_editingGame.HomeTeam"
+                                                       SearchFunc="@SearchTeams"
+                                                       CoerceValue="true"
+                                                       ResetValueOnEmptyText="true"
+                                                       Variant="Variant.Outlined"
+                                                       Required="true" />
                                     </MudItem>
                                     <MudItem xs="12" sm="6">
-                                        <MudTextField @bind-Value="_editingGame.AwayTeam"
-                                                      Label="Bortalag"
-                                                      Variant="Variant.Outlined"
-                                                      Required="true" />
+                                        <MudAutocomplete T="string"
+                                                       Label="Bortalag"
+                                                       @bind-Value="_editingGame.AwayTeam"
+                                                       SearchFunc="@SearchTeams"
+                                                       CoerceValue="true"
+                                                       ResetValueOnEmptyText="true"
+                                                       Variant="Variant.Outlined"
+                                                       Required="true" />
                                     </MudItem>
                                     <MudItem xs="12" sm="6">
                                         <MudSelect @bind-Value="_editingGame.BetKind"
@@ -457,6 +473,7 @@ else
     private List<GameWeek> _allWeeks = [];
     private List<User> _allUsers = [];
     private List<Game> _existingGames = [];
+    private List<string> _allTeamNames = [];
     private int _selectedWeekId;
     private int _selectedGameSelectorId;
     private bool _isSaving;
@@ -513,6 +530,7 @@ else
 
         _allWeeks = GameWeekService.GetAllWeeks();
         _allUsers = DataStore.GetUsers();
+        _allTeamNames = DataStore.GetTeams().Select(t => t.Name).OrderBy(n => n).ToList();
 
         // If no weeks exist, suggest creating week 1
         if (!_allWeeks.Any())
@@ -608,6 +626,9 @@ else
 
         _isSaving = true;
         StateHasChanged();
+
+        EnsureTeamExists(_newGame.HomeTeam);
+        EnsureTeamExists(_newGame.AwayTeam);
 
         try
         {
@@ -799,6 +820,10 @@ else
         }
 
         _isSaving = true;
+        
+        EnsureTeamExists(_editingGame.HomeTeam);
+        EnsureTeamExists(_editingGame.AwayTeam);
+
         try
         {
             GameService.AdminUpdateGame(
@@ -943,6 +968,26 @@ else
             BetType.ExactScore => "Exakt Resultat",
             _ => betKind.ToString()
         };
+    }
+
+    private async Task<IEnumerable<string>> SearchTeams(string value, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(value))
+            return _allTeamNames;
+        return _allTeamNames.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private void EnsureTeamExists(string teamName)
+    {
+        if (string.IsNullOrWhiteSpace(teamName)) return;
+        
+        var exists = _allTeamNames.Any(t => t.Equals(teamName, StringComparison.InvariantCultureIgnoreCase));
+        if (!exists)
+        {
+            DataStore.AddTeam(new Team { Name = teamName, League = "Unknown" });
+            _allTeamNames.Add(teamName);
+            _allTeamNames.Sort();
+        }
     }
 }
 

@@ -32,4 +32,8 @@ public interface IDataStore
     Bet? GetBetByUserAndGame(int userId, int gameId);
     Bet CreateBet(Bet bet);
     Bet UpdateBet(Bet bet);
+
+    // Teams
+    List<Team> GetTeams();
+    Team AddTeam(Team team);
 }

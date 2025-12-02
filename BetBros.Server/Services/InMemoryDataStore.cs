@@ -10,10 +10,12 @@ public class InMemoryDataStore : IDataStore
     private readonly List<GameWeek> _gameWeeks;
     private readonly List<Game> _games;
     private readonly List<Bet> _bets;
+    private readonly List<Team> _teams;
     
     private int _nextGameWeekId = 2;
     private int _nextGameId = 1;
     private int _nextBetId = 1;
+    private int _nextTeamId = 1;
     
     private readonly DateTime _weekOneStartDate = new(2025, 11, 24, 0, 0, 0, DateTimeKind.Utc);
 
@@ -83,6 +85,7 @@ public class InMemoryDataStore : IDataStore
 
         _games = [];
         _bets = [];
+        _teams = [];
     }
 
     // Users
@@ -195,5 +198,15 @@ public class InMemoryDataStore : IDataStore
             _bets.Add(bet);
         }
         return bet;
+    }
+
+    // Teams
+    public List<Team> GetTeams() => _teams.OrderBy(t => t.Name).ToList();
+
+    public Team AddTeam(Team team)
+    {
+        team.Id = _nextTeamId++;
+        _teams.Add(team);
+        return team;
     }
 }
