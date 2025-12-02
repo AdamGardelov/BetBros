@@ -3,15 +3,19 @@ using BetBros.Server.Models;
 using BetBros.Server.Services.Interfaces;
 using BetBros.Server.Utils;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 namespace BetBros.Server.Services;
 
-public class AuthService(IDataStore dataStore, AuthenticationStateProvider authStateProvider) : IAuthService
+public class AuthService(
+    IDataStore dataStore,
+    AuthenticationStateProvider authStateProvider,
+    ProtectedLocalStorage localStorage) : IAuthService
 {
     private readonly CustomAuthenticationStateProvider _authStateProvider = (CustomAuthenticationStateProvider)authStateProvider;
-    private User? _currentUser;
+    private int? _cachedUserId;
 
-    public bool IsAuthenticated => _currentUser != null;
+    public bool IsAuthenticated => _cachedUserId.HasValue;
 
     public async Task<User?> LoginAsync(string username, string password)
     {
@@ -19,7 +23,9 @@ public class AuthService(IDataStore dataStore, AuthenticationStateProvider authS
 
         if (user != null && PasswordHasher.VerifyPassword(password, user.PasswordHash))
         {
-            _currentUser = user;
+            // Store user ID in browser's protected local storage
+            await localStorage.SetAsync("UserId", user.Id);
+            _cachedUserId = user.Id;
 
             var claims = new List<Claim>
             {
@@ -45,12 +51,34 @@ public class AuthService(IDataStore dataStore, AuthenticationStateProvider authS
 
     public async Task LogoutAsync()
     {
-        _currentUser = null;
+        await localStorage.DeleteAsync("UserId");
+        _cachedUserId = null;
         _authStateProvider.Logout();
     }
 
     public async Task<User?> GetCurrentUserAsync()
     {
-        return _currentUser;
+        // Try cache first
+        if (_cachedUserId.HasValue)
+        {
+            return dataStore.GetUserById(_cachedUserId.Value);
+        }
+
+        // Try loading from localStorage
+        try
+        {
+            var result = await localStorage.GetAsync<int>("UserId");
+            if (result.Success)
+            {
+                _cachedUserId = result.Value;
+                return dataStore.GetUserById(result.Value);
+            }
+        }
+        catch
+        {
+            // localStorage might not be available yet
+        }
+
+        return null;
     }
 }

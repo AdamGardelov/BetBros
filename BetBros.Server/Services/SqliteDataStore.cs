@@ -18,7 +18,7 @@ public class SqliteDataStore : IDataStore
     // Users
     public List<User> GetUsers() => _context.Users.ToList();
     public User? GetUserById(int id) => _context.Users.FirstOrDefault(u => u.Id == id);
-    public User? GetUserByUsername(string username) => _context.Users.FirstOrDefault(u => u.Username == username);
+    public User? GetUserByUsername(string username) => _context.Users.FirstOrDefault(u => u.Username.ToLower() == username.ToLower());
 
     // Game Weeks
     public List<GameWeek> GetGameWeeks() => _context.GameWeeks.OrderBy(gw => gw.WeekNumber).ToList();

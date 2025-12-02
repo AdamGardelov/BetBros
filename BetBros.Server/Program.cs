@@ -29,6 +29,7 @@ builder.Services.AddAuthentication("BetBros")
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, BetBrosAuthenticationHandler>("BetBros", null);
 
 builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
 builder.Services.AddAuthorization();
 
@@ -41,11 +42,11 @@ builder.Services.AddScoped<IBetService, BetService>();
 
 var app = builder.Build();
 
-// Ensure Database is created
+// Ensure Database is created and migrations are applied
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BetBrosDbContext>();
-    db.Database.EnsureCreated();
+    db.Database.Migrate();
 }
 
 // Configure the HTTP request pipeline

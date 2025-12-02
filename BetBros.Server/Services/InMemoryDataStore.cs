@@ -91,7 +91,7 @@ public class InMemoryDataStore : IDataStore
     // Users
     public List<User> GetUsers() => _users;
     public User? GetUserById(int id) => _users.FirstOrDefault(u => u.Id == id);
-    public User? GetUserByUsername(string username) => _users.FirstOrDefault(u => u.Username == username);
+    public User? GetUserByUsername(string username) => _users.FirstOrDefault(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
 
     // Game Weeks
     public List<GameWeek> GetGameWeeks() => _gameWeeks;

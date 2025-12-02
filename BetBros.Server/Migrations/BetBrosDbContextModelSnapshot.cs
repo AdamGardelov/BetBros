@@ -279,7 +279,7 @@ namespace BetBros.Server.Migrations
                         {
                             Id = 20,
                             League = "Premier League",
-                            Name = "Wolverhampton Wanderers"
+                            Name = "Wolverhampton"
                         },
                         new
                         {
@@ -844,6 +844,126 @@ namespace BetBros.Server.Migrations
                             Id = 114,
                             League = "Superettan",
                             Name = "Umeå FC"
+                        },
+                        new
+                        {
+                            Id = 115,
+                            League = "La Liga",
+                            Name = "Barcelona"
+                        },
+                        new
+                        {
+                            Id = 116,
+                            League = "La Liga",
+                            Name = "Real Madrid"
+                        },
+                        new
+                        {
+                            Id = 117,
+                            League = "La Liga",
+                            Name = "Villarreal"
+                        },
+                        new
+                        {
+                            Id = 118,
+                            League = "La Liga",
+                            Name = "Atlético Madrid"
+                        },
+                        new
+                        {
+                            Id = 119,
+                            League = "La Liga",
+                            Name = "Real Betis"
+                        },
+                        new
+                        {
+                            Id = 120,
+                            League = "La Liga",
+                            Name = "Espanyol"
+                        },
+                        new
+                        {
+                            Id = 121,
+                            League = "La Liga",
+                            Name = "Getafe"
+                        },
+                        new
+                        {
+                            Id = 122,
+                            League = "La Liga",
+                            Name = "Athletic Bilbao"
+                        },
+                        new
+                        {
+                            Id = 123,
+                            League = "La Liga",
+                            Name = "Rayo Vallecano"
+                        },
+                        new
+                        {
+                            Id = 124,
+                            League = "La Liga",
+                            Name = "Real Sociedad"
+                        },
+                        new
+                        {
+                            Id = 125,
+                            League = "La Liga",
+                            Name = "Elche"
+                        },
+                        new
+                        {
+                            Id = 126,
+                            League = "La Liga",
+                            Name = "Celta Vigo"
+                        },
+                        new
+                        {
+                            Id = 127,
+                            League = "La Liga",
+                            Name = "Sevilla"
+                        },
+                        new
+                        {
+                            Id = 128,
+                            League = "La Liga",
+                            Name = "Alavés"
+                        },
+                        new
+                        {
+                            Id = 129,
+                            League = "La Liga",
+                            Name = "Valencia"
+                        },
+                        new
+                        {
+                            Id = 130,
+                            League = "La Liga",
+                            Name = "Real Mallorca"
+                        },
+                        new
+                        {
+                            Id = 131,
+                            League = "La Liga",
+                            Name = "Osasuna"
+                        },
+                        new
+                        {
+                            Id = 132,
+                            League = "La Liga",
+                            Name = "Girona"
+                        },
+                        new
+                        {
+                            Id = 133,
+                            League = "La Liga",
+                            Name = "Levante"
+                        },
+                        new
+                        {
+                            Id = 134,
+                            League = "La Liga",
+                            Name = "Real Oviedo"
                         });
                 });
 

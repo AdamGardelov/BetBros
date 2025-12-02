@@ -90,6 +90,10 @@ public class BetBrosDbContext(DbContextOptions<BetBrosDbContext> options) : DbCo
         var superettanTeams = new[] { "Västerås SK", "Kalmar FF", "Örgryte", "Oddevold", "Falkenberg", "Varbergs BoIS", "Helsingborg", "Brage", "BoIS", "Sandviken", "Sundsvall", "Östersund", "Utsikten", "Örebro", "Trelleborg", "Umeå FC" };
         foreach (var name in superettanTeams) teams.Add(new Team { Id = id++, Name = name, League = "Superettan" });
 
+        // La Liga
+        var laLigaTeams = new[] { "Barcelona", "Real Madrid", "Villarreal", "Atlético Madrid", "Real Betis", "Espanyol", "Getafe", "Athletic Bilbao", "Rayo Vallecano", "Real Sociedad", "Elche", "Celta Vigo", "Sevilla", "Alavés", "Valencia", "Real Mallorca", "Osasuna", "Girona", "Levante", "Real Oviedo" };
+        foreach (var name in laLigaTeams) teams.Add(new Team { Id = id++, Name = name, League = "La Liga" });
+
         modelBuilder.Entity<Team>().HasData(teams.ToArray());
     }
 }
