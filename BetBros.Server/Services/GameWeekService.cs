@@ -4,7 +4,7 @@ using BetBros.Server.Utils;
 
 namespace BetBros.Server.Services;
 
-public class GameWeekService(IDataStore dataStore) : IGameWeekService
+public class GameWeekService(IDataStore dataStore, IGameService gameService) : IGameWeekService
 {
     private readonly DateTime _weekOneStartDate = new(2025, 11, 24, 0, 0, 0, DateTimeKind.Utc);
 
@@ -112,5 +112,56 @@ public class GameWeekService(IDataStore dataStore) : IGameWeekService
 
         gameWeek.GameSelectorId = gameSelectorId;
         return dataStore.UpdateGameWeek(gameWeek);
+    }
+
+    public List<GameWeek> UpdateWeekGameSelectorWithCascade(int gameWeekId, int gameSelectorId)
+    {
+        var gameWeek = dataStore.GetGameWeekById(gameWeekId);
+        if (gameWeek == null)
+        {
+            throw new InvalidOperationException("Game week not found");
+        }
+
+        var selector = dataStore.GetUserById(gameSelectorId);
+        if (selector == null)
+        {
+            throw new InvalidOperationException("Game selector not found");
+        }
+
+        var users = dataStore.GetUsers().OrderBy(u => u.RotationOrder).ToList();
+        var updatedWeeks = new List<GameWeek>();
+
+        // Update the current week
+        gameWeek.GameSelectorId = gameSelectorId;
+        dataStore.UpdateGameWeek(gameWeek);
+        updatedWeeks.Add(gameWeek);
+
+        // Get the rotation order of the new selector
+        var currentRotationOrder = selector.RotationOrder;
+
+        // Update all subsequent weeks that don't have games
+        var allWeeks = dataStore.GetGameWeeks().OrderBy(w => w.WeekNumber).ToList();
+        var currentWeekNumber = gameWeek.WeekNumber;
+
+        foreach (var week in allWeeks.Where(w => w.WeekNumber > currentWeekNumber))
+        {
+            // Check if this week has games - if so, skip it
+            var games = gameService.GetGamesForWeek(week.Id);
+            if (games.Count > 0)
+            {
+                // Stop cascading if we hit a week with games
+                break;
+            }
+
+            // Calculate the next rotation order
+            var nextRotationOrder = (currentRotationOrder + (week.WeekNumber - currentWeekNumber)) % users.Count;
+            var nextSelector = users[nextRotationOrder];
+
+            week.GameSelectorId = nextSelector.Id;
+            dataStore.UpdateGameWeek(week);
+            updatedWeeks.Add(week);
+        }
+
+        return updatedWeeks;
     }
 }

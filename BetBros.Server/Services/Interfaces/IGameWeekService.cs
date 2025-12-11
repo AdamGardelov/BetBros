@@ -12,4 +12,5 @@ public interface IGameWeekService
     bool CanUserSelectGames(int userId, int gameWeekId);
     GameWeek UpdateWeekNetProfit(int gameWeekId, decimal? netProfit);
     GameWeek UpdateWeekGameSelector(int gameWeekId, int gameSelectorId);
+    List<GameWeek> UpdateWeekGameSelectorWithCascade(int gameWeekId, int gameSelectorId);
 }

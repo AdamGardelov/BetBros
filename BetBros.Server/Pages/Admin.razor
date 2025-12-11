@@ -25,6 +25,61 @@
 else
 {
     <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h6" Class="mb-4">Verifiera Veckor och Rotation</MudText>
+        <MudButton Variant="Variant.Outlined" 
+                   Color="Color.Info" 
+                   OnClick="VerifyAllWeeks"
+                   Class="mb-3">
+            Verifiera alla veckor mot rotation
+        </MudButton>
+        @if (_weekVerificationResults.Any())
+        {
+            <MudTable Items="_weekVerificationResults" Hover="true" Dense="true" Class="mt-3">
+                <HeaderContent>
+                    <MudTh>Vecka</MudTh>
+                    <MudTh>Nuvarande Spelväljare</MudTh>
+                    <MudTh>Korrekt Spelväljare</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Åtgärd</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Vecka">@context.WeekNumber</MudTd>
+                    <MudTd DataLabel="Nuvarande">@context.CurrentSelector</MudTd>
+                    <MudTd DataLabel="Korrekt">@context.CorrectSelector</MudTd>
+                    <MudTd DataLabel="Status">
+                        @if (context.IsCorrect)
+                        {
+                            <MudChip Color="Color.Success" Size="Size.Small">Korrekt</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip Color="Color.Warning" Size="Size.Small">Fel</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Åtgärd">
+                        @if (!context.IsCorrect && context.CanFix)
+                        {
+                            <MudButton Size="Size.Small" 
+                                      Variant="Variant.Outlined" 
+                                      Color="Color.Warning"
+                                      OnClick="@(() => FixWeekSelector(context.WeekId, context.CorrectSelectorId))"
+                                      Disabled="_isSaving">
+                                Fixa
+                            </MudButton>
+                        }
+                        else if (!context.IsCorrect && !context.CanFix)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Warning">
+                                Har matcher
+                            </MudText>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mb-4">
         <MudText Typo="Typo.h6" Class="mb-4">Välj Vecka och Spelare</MudText>
         <MudGrid>
             <MudItem xs="12" sm="6">
@@ -542,6 +597,7 @@ else
     private int _newWeekSelectorId;
     private UserBetModel? _newGameSelectorBet;
     private int _newSelectorId;
+    private List<WeekVerificationResult> _weekVerificationResults = [];
 
     private class UserBetModel
     {
@@ -563,6 +619,17 @@ else
     {
         public int HomeScore { get; set; }
         public int AwayScore { get; set; }
+    }
+
+    private class WeekVerificationResult
+    {
+        public int WeekId { get; set; }
+        public int WeekNumber { get; set; }
+        public string CurrentSelector { get; set; } = string.Empty;
+        public string CorrectSelector { get; set; } = string.Empty;
+        public int CorrectSelectorId { get; set; }
+        public bool IsCorrect { get; set; }
+        public bool CanFix { get; set; }
     }
 
     private NewGameModel _newGame = new();
@@ -879,7 +946,8 @@ else
         _isSaving = true;
         try
         {
-            GameWeekService.UpdateWeekGameSelector(_selectedWeekId, _newSelectorId);
+            // Use cascade update to fix subsequent weeks automatically
+            var updatedWeeks = GameWeekService.UpdateWeekGameSelectorWithCascade(_selectedWeekId, _newSelectorId);
             
             // Update local references
             _allWeeks = GameWeekService.GetAllWeeks();
@@ -890,7 +958,21 @@ else
                 _newSelectorId = currentWeek.GameSelectorId;
             }
             
-            Snackbar.Add($"Spelväljare ändrad till {newSelector.DisplayName}", Severity.Success);
+            if (updatedWeeks.Count > 1)
+            {
+                Snackbar.Add($"Spelväljare ändrad till {newSelector.DisplayName} och {updatedWeeks.Count - 1} efterföljande vecka(er) uppdaterade automatiskt", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"Spelväljare ändrad till {newSelector.DisplayName}", Severity.Success);
+            }
+            
+            // Refresh verification results if they exist
+            if (_weekVerificationResults.Any())
+            {
+                VerifyAllWeeks();
+            }
+            
             await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
@@ -1108,6 +1190,80 @@ else
             DataStore.AddTeam(new Team { Name = teamName, League = "Unknown" });
             _allTeamNames.Add(teamName);
             _allTeamNames.Sort();
+        }
+    }
+
+    private void VerifyAllWeeks()
+    {
+        _weekVerificationResults = [];
+        _allWeeks = GameWeekService.GetAllWeeks();
+
+        foreach (var week in _allWeeks.OrderBy(w => w.WeekNumber))
+        {
+            // Calculate what the selector SHOULD be based on current rotation
+            var correctSelector = RotationCalculator.GetSelectorForWeek(week.WeekNumber, _allUsers);
+            var currentSelector = _allUsers.FirstOrDefault(u => u.Id == week.GameSelectorId);
+            
+            var isCorrect = currentSelector?.Id == correctSelector.Id;
+            
+            // Check if we can fix it (no games exist)
+            var games = GameService.GetGamesForWeek(week.Id);
+            var canFix = games.Count == 0;
+
+            _weekVerificationResults.Add(new WeekVerificationResult
+            {
+                WeekId = week.Id,
+                WeekNumber = week.WeekNumber,
+                CurrentSelector = currentSelector?.DisplayName ?? "Okänd",
+                CorrectSelector = correctSelector.DisplayName,
+                CorrectSelectorId = correctSelector.Id,
+                IsCorrect = isCorrect,
+                CanFix = canFix
+            });
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task FixWeekSelector(int weekId, int correctSelectorId)
+    {
+        _isSaving = true;
+        try
+        {
+            // Double-check no games exist
+            var games = GameService.GetGamesForWeek(weekId);
+            if (games.Count > 0)
+            {
+                Snackbar.Add("Kan inte fixa vecka eftersom det finns matcher", Severity.Error);
+                return;
+            }
+
+            // Use cascade update to fix subsequent weeks automatically
+            var updatedWeeks = GameWeekService.UpdateWeekGameSelectorWithCascade(weekId, correctSelectorId);
+            
+            var week = _allWeeks.FirstOrDefault(w => w.Id == weekId);
+            var selector = _allUsers.FirstOrDefault(u => u.Id == correctSelectorId);
+            
+            if (updatedWeeks.Count > 1)
+            {
+                Snackbar.Add($"Vecka {week?.WeekNumber} fixad - nu är {selector?.DisplayName} spelväljare. {updatedWeeks.Count - 1} efterföljande vecka(er) uppdaterade automatiskt", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"Vecka {week?.WeekNumber} fixad - nu är {selector?.DisplayName} spelväljare", Severity.Success);
+            }
+            
+            // Refresh verification results
+            VerifyAllWeeks();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fel: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
         }
     }
 }
