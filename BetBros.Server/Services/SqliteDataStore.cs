@@ -33,7 +33,34 @@ public class SqliteDataStore : IDataStore
         if (currentWeek == null)
         {
             var users = GetUsers();
-            var selector = RotationCalculator.GetSelectorForWeek(currentWeekNumber, users);
+            var orderedUsers = users.OrderBy(u => u.RotationOrder).ToList();
+            
+            User selector;
+            // Check if previous week exists - if so, use its selector to calculate current week
+            // This respects manual changes to previous weeks
+            var previousWeek = _context.GameWeeks.FirstOrDefault(gw => gw.WeekNumber == currentWeekNumber - 1);
+            if (previousWeek != null)
+            {
+                // Use the previous week's actual selector (respects manual changes)
+                var previousSelector = users.FirstOrDefault(u => u.Id == previousWeek.GameSelectorId);
+                if (previousSelector != null)
+                {
+                    var previousRotationOrder = previousSelector.RotationOrder;
+                    var currentRotationOrder = (previousRotationOrder + 1) % orderedUsers.Count;
+                    selector = orderedUsers[currentRotationOrder];
+                }
+                else
+                {
+                    // Fallback to rotation calculator
+                    selector = RotationCalculator.GetSelectorForWeek(currentWeekNumber, users);
+                }
+            }
+            else
+            {
+                // No previous week exists, use rotation calculator
+                selector = RotationCalculator.GetSelectorForWeek(currentWeekNumber, users);
+            }
+            
             var weekStart = RotationCalculator.GetWeekStart(currentWeekNumber, _weekOneStartDate);
             var weekEnd = RotationCalculator.GetWeekEnd(weekStart);
 

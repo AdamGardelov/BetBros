@@ -1196,15 +1196,50 @@ else
     private void VerifyAllWeeks()
     {
         _weekVerificationResults = [];
+        // Refresh users list to ensure we have latest rotation orders
+        _allUsers = DataStore.GetUsers();
         _allWeeks = GameWeekService.GetAllWeeks();
 
-        foreach (var week in _allWeeks.OrderBy(w => w.WeekNumber))
+        var orderedWeeks = _allWeeks.OrderBy(w => w.WeekNumber).ToList();
+        var orderedUsers = _allUsers.OrderBy(u => u.RotationOrder).ToList();
+
+        for (int i = 0; i < orderedWeeks.Count; i++)
         {
-            // Calculate what the selector SHOULD be based on current rotation
-            var correctSelector = RotationCalculator.GetSelectorForWeek(week.WeekNumber, _allUsers);
+            var week = orderedWeeks[i];
             var currentSelector = _allUsers.FirstOrDefault(u => u.Id == week.GameSelectorId);
             
-            var isCorrect = currentSelector?.Id == correctSelector.Id;
+            User correctSelector;
+            bool isCorrect;
+            
+            if (i == 0)
+            {
+                // Week 1: Use rotation calculator based on week number
+                correctSelector = RotationCalculator.GetSelectorForWeek(week.WeekNumber, _allUsers);
+                isCorrect = currentSelector?.Id == correctSelector.Id;
+            }
+            else
+            {
+                // Subsequent weeks: Calculate based on previous week's ACTUAL selector (treating manual changes as correct)
+                var previousWeek = orderedWeeks[i - 1];
+                var previousSelector = _allUsers.FirstOrDefault(u => u.Id == previousWeek.GameSelectorId);
+                
+                if (previousSelector != null)
+                {
+                    // Get the rotation order of the previous week's selector
+                    var previousRotationOrder = previousSelector.RotationOrder;
+                    // Next week should be the next in rotation
+                    var nextRotationOrder = (previousRotationOrder + 1) % orderedUsers.Count;
+                    correctSelector = orderedUsers[nextRotationOrder];
+                }
+                else
+                {
+                    // Fallback to rotation calculator if previous selector not found
+                    correctSelector = RotationCalculator.GetSelectorForWeek(week.WeekNumber, _allUsers);
+                }
+                
+                // For subsequent weeks, treat current selector as correct if it matches the calculated one
+                isCorrect = currentSelector?.Id == correctSelector.Id;
+            }
             
             // Check if we can fix it (no games exist)
             var games = GameService.GetGamesForWeek(week.Id);

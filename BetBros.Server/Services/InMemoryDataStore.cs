@@ -105,7 +105,34 @@ public class InMemoryDataStore : IDataStore
         // Auto-create if it doesn't exist
         if (currentWeek == null)
         {
-            var selector = RotationCalculator.GetSelectorForWeek(currentWeekNumber, _users);
+            var orderedUsers = _users.OrderBy(u => u.RotationOrder).ToList();
+            
+            User selector;
+            // Check if previous week exists - if so, use its selector to calculate current week
+            // This respects manual changes to previous weeks
+            var previousWeek = _gameWeeks.FirstOrDefault(gw => gw.WeekNumber == currentWeekNumber - 1);
+            if (previousWeek != null)
+            {
+                // Use the previous week's actual selector (respects manual changes)
+                var previousSelector = _users.FirstOrDefault(u => u.Id == previousWeek.GameSelectorId);
+                if (previousSelector != null)
+                {
+                    var previousRotationOrder = previousSelector.RotationOrder;
+                    var currentRotationOrder = (previousRotationOrder + 1) % orderedUsers.Count;
+                    selector = orderedUsers[currentRotationOrder];
+                }
+                else
+                {
+                    // Fallback to rotation calculator
+                    selector = RotationCalculator.GetSelectorForWeek(currentWeekNumber, _users);
+                }
+            }
+            else
+            {
+                // No previous week exists, use rotation calculator
+                selector = RotationCalculator.GetSelectorForWeek(currentWeekNumber, _users);
+            }
+            
             var weekStart = RotationCalculator.GetWeekStart(currentWeekNumber, _weekOneStartDate);
             var weekEnd = RotationCalculator.GetWeekEnd(weekStart);
 

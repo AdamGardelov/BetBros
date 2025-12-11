@@ -20,7 +20,34 @@ public class GameWeekService(IDataStore dataStore, IGameService gameService) : I
         var nextWeekNumber = currentWeekNumber + 1;
 
         var users = dataStore.GetUsers();
-        var selector = RotationCalculator.GetSelectorForWeek(nextWeekNumber, users);
+        var orderedUsers = users.OrderBy(u => u.RotationOrder).ToList();
+        
+        // Check if current week exists - if so, use its selector to calculate next week
+        // This respects manual changes to the current week
+        User selector;
+        var currentWeek = dataStore.GetGameWeeks().FirstOrDefault(w => w.WeekNumber == currentWeekNumber);
+        if (currentWeek != null)
+        {
+            // Use the current week's actual selector (respects manual changes)
+            var currentSelector = users.FirstOrDefault(u => u.Id == currentWeek.GameSelectorId);
+            if (currentSelector != null)
+            {
+                var currentRotationOrder = currentSelector.RotationOrder;
+                var nextRotationOrder = (currentRotationOrder + 1) % orderedUsers.Count;
+                selector = orderedUsers[nextRotationOrder];
+            }
+            else
+            {
+                // Fallback to rotation calculator
+                selector = RotationCalculator.GetSelectorForWeek(nextWeekNumber, users);
+            }
+        }
+        else
+        {
+            // No current week exists, use rotation calculator
+            selector = RotationCalculator.GetSelectorForWeek(nextWeekNumber, users);
+        }
+        
         var weekStart = RotationCalculator.GetWeekStart(nextWeekNumber, _weekOneStartDate);
         var weekEnd = RotationCalculator.GetWeekEnd(weekStart);
 

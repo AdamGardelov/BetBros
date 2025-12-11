@@ -186,12 +186,14 @@
             _games = GameService.GetGamesForWeek(_currentWeek.Id);
             _leaderboard = BetService.GetLeaderboard();
 
-            // Calculate next week's selector
-            if (_currentWeek != null)
+            // Calculate next week's selector based on current week's actual selector (respects manual changes)
+            if (_currentWeek != null && _selector != null)
             {
-                var nextWeekNumber = _currentWeek.WeekNumber + 1;
                 var users = DataStore.GetUsers();
-                _nextWeekSelector = RotationCalculator.GetSelectorForWeek(nextWeekNumber, users);
+                var orderedUsers = users.OrderBy(u => u.RotationOrder).ToList();
+                var currentRotationOrder = _selector.RotationOrder;
+                var nextRotationOrder = (currentRotationOrder + 1) % orderedUsers.Count;
+                _nextWeekSelector = orderedUsers[nextRotationOrder];
             }
 
             // Load selector's bets for the current week
