@@ -31,11 +31,11 @@
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd>
+                                    <strong>#@context.Rank</strong>
                                     @if (context.Rank == 1)
                                     {
-                                        <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
+                                        <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" Style="margin-left: 4px; vertical-align: middle;" />
                                     }
-                                    <strong>#@context.Rank</strong>
                                 </MudTd>
                                 <MudTd>
                                     <MudText Typo="Typo.body1"><strong>@context.DisplayName</strong></MudText>
@@ -59,11 +59,13 @@
                                 <MudPaper Class="pa-3" Elevation="1">
                                     <MudGrid>
                                         <MudItem xs="2">
-                                            @if (item.Rank == 1)
-                                            {
-                                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" />
-                                            }
-                                            <MudText Typo="Typo.h6"><strong>#@item.Rank</strong></MudText>
+                                            <MudText Typo="Typo.h6">
+                                                <strong>#@item.Rank</strong>
+                                                @if (item.Rank == 1)
+                                                {
+                                                    <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Size="Size.Small" Style="margin-left: 4px; vertical-align: middle;" />
+                                                }
+                                            </MudText>
                                         </MudItem>
                                         <MudItem xs="10">
                                             <MudText Typo="Typo.body1"><strong>@item.DisplayName</strong></MudText>
