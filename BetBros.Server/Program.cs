@@ -40,6 +40,12 @@ builder.Services.AddScoped<IGameWeekService, GameWeekService>();
 builder.Services.AddScoped<IGameService, GameService>();
 builder.Services.AddScoped<IBetService, BetService>();
 
+// Add HTTP client factory for keep-alive service
+builder.Services.AddHttpClient();
+
+// Register keep-alive service to prevent Azure free tier from sleeping
+builder.Services.AddHostedService<KeepAliveService>();
+
 var app = builder.Build();
 
 // Ensure Database is created and migrations are applied
@@ -74,6 +80,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 app.MapStaticAssets();
+
+// Keep-alive endpoint to prevent Azure free tier from sleeping
+app.MapGet("/keepalive", () => Results.Ok(new { status = "alive", timestamp = DateTime.UtcNow }))
+    .AllowAnonymous();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

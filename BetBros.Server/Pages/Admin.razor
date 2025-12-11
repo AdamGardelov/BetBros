@@ -89,6 +89,60 @@ else
         </MudGrid>
     </MudPaper>
 
+    @if (_selectedWeekId > 0)
+    {
+        <MudPaper Class="pa-4 mb-4">
+            <MudText Typo="Typo.h6" Class="mb-4">Byt Spelväljare för Veckan</MudText>
+            @{
+                var currentWeek = _allWeeks.FirstOrDefault(w => w.Id == _selectedWeekId);
+                var currentSelector = _allUsers.FirstOrDefault(u => u.Id == currentWeek?.GameSelectorId);
+                var canSwitchSelector = _existingGames.Count == 0;
+            }
+            @if (currentWeek != null)
+            {
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body1" Class="mb-2">
+                            <strong>Nuvarande spelväljare:</strong> @(currentSelector?.DisplayName ?? "Okänd")
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSelect @bind-Value="_newSelectorId" 
+                                   Label="Ny spelväljare" 
+                                   Variant="Variant.Outlined"
+                                   Disabled="!canSwitchSelector">
+                            @foreach (var user in _allUsers)
+                            {
+                                <MudSelectItem Value="@user.Id">@user.DisplayName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+                @if (!canSwitchSelector)
+                {
+                    <MudAlert Severity="Severity.Warning" Class="mt-3">
+                        Kan inte byta spelväljare eftersom det redan finns @_existingGames.Count match(er) för denna vecka. 
+                        Ta bort alla matcher först om du vill byta spelväljare.
+                    </MudAlert>
+                }
+                else if (_newSelectorId > 0 && _newSelectorId != currentWeek.GameSelectorId)
+                {
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Warning"
+                               OnClick="SwitchWeekSelector"
+                               Disabled="_isSaving"
+                               Class="mt-3">
+                        @if (_isSaving)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        Byt till @(_allUsers.FirstOrDefault(u => u.Id == _newSelectorId)?.DisplayName ?? "vald spelare")
+                    </MudButton>
+                }
+            }
+        </MudPaper>
+    }
+
     @if (_selectedWeekId > 0 && _selectedGameSelectorId > 0)
     {
         <MudPaper Class="pa-4 mb-4">
@@ -487,6 +541,7 @@ else
     private int? _newWeekNumber;
     private int _newWeekSelectorId;
     private UserBetModel? _newGameSelectorBet;
+    private int _newSelectorId;
 
     private class UserBetModel
     {
@@ -549,6 +604,9 @@ else
             if (week != null)
             {
                 _weekNetProfit = week.NetProfit;
+                _selectedGameSelectorId = week.GameSelectorId;
+                _newSelectorId = week.GameSelectorId;
+                _existingGames = GameService.GetGamesForWeek(_selectedWeekId);
             }
         }
     }
@@ -566,12 +624,14 @@ else
             {
                 _weekNetProfit = week.NetProfit;
                 _selectedGameSelectorId = week.GameSelectorId;
+                _newSelectorId = week.GameSelectorId; // Initialize new selector to current
             }
         }
         else
         {
             _existingGames = [];
             _weekNetProfit = null;
+            _newSelectorId = 0;
         }
         StateHasChanged();
     }
@@ -741,6 +801,7 @@ else
             _allWeeks = GameWeekService.GetAllWeeks();
             _selectedWeekId = newWeek.Id;
             _selectedGameSelectorId = newWeek.GameSelectorId;
+            _newSelectorId = newWeek.GameSelectorId;
             _newWeekNumber = null;
             _newWeekSelectorId = 0;
             
@@ -771,6 +832,66 @@ else
         {
             GameWeekService.UpdateWeekNetProfit(_selectedWeekId, _weekNetProfit);
             Snackbar.Add($"Vinst/förlust sparad: {_weekNetProfit.Value:+0;-0} kr", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fel: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task SwitchWeekSelector()
+    {
+        if (_selectedWeekId <= 0 || _newSelectorId <= 0)
+            return;
+
+        // Double-check that no games exist
+        _existingGames = GameService.GetGamesForWeek(_selectedWeekId);
+        if (_existingGames.Count > 0)
+        {
+            Snackbar.Add("Kan inte byta spelväljare eftersom det redan finns matcher för denna vecka.", Severity.Error);
+            return;
+        }
+
+        var currentWeek = _allWeeks.FirstOrDefault(w => w.Id == _selectedWeekId);
+        if (currentWeek == null)
+        {
+            Snackbar.Add("Vecka hittades inte", Severity.Error);
+            return;
+        }
+
+        if (currentWeek.GameSelectorId == _newSelectorId)
+        {
+            Snackbar.Add("Detta är redan den nuvarande spelväljaren", Severity.Info);
+            return;
+        }
+
+        var newSelector = _allUsers.FirstOrDefault(u => u.Id == _newSelectorId);
+        if (newSelector == null)
+        {
+            Snackbar.Add("Spelare hittades inte", Severity.Error);
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            GameWeekService.UpdateWeekGameSelector(_selectedWeekId, _newSelectorId);
+            
+            // Update local references
+            _allWeeks = GameWeekService.GetAllWeeks();
+            currentWeek = _allWeeks.FirstOrDefault(w => w.Id == _selectedWeekId);
+            if (currentWeek != null)
+            {
+                _selectedGameSelectorId = currentWeek.GameSelectorId;
+                _newSelectorId = currentWeek.GameSelectorId;
+            }
+            
+            Snackbar.Add($"Spelväljare ändrad till {newSelector.DisplayName}", Severity.Success);
+            await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
         {
