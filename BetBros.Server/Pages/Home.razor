@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @using BetBros.Server.Enums
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
@@ -6,6 +6,8 @@
 @inject IGameWeekService GameWeekService
 @inject IGameService GameService
 @inject IBetService BetService
+@inject IDataStore DataStore
+@using BetBros.Server.Utils
 
 <PageTitle>Översikt - BetBros</PageTitle>
 
@@ -26,6 +28,10 @@
                         {
                             <MudText><strong>Vecka:</strong> @_currentWeek.WeekNumber</MudText>
                             <MudText><strong>Matchväljare:</strong> @_selector.DisplayName</MudText>
+                            @if (_nextWeekSelector != null)
+                            {
+                                <MudText><strong>Nästa matchväljare:</strong> @_nextWeekSelector.DisplayName</MudText>
+                            }
                             <MudText><strong>Period:</strong> Vecka @GetSwedishWeekNumber(_currentWeek.StartDate)</MudText>
                         }
                         else
@@ -157,6 +163,7 @@
     private User? _currentUser;
     private GameWeek? _currentWeek;
     private User? _selector;
+    private User? _nextWeekSelector;
     private List<Game>? _games;
     private List<Bet>? _selectorBets;
     private Dictionary<int, decimal>? _leaderboard;
@@ -178,6 +185,14 @@
             _selector = GameWeekService.GetWeekSelector(_currentWeek.Id);
             _games = GameService.GetGamesForWeek(_currentWeek.Id);
             _leaderboard = BetService.GetLeaderboard();
+
+            // Calculate next week's selector
+            if (_currentWeek != null)
+            {
+                var nextWeekNumber = _currentWeek.WeekNumber + 1;
+                var users = DataStore.GetUsers();
+                _nextWeekSelector = RotationCalculator.GetSelectorForWeek(nextWeekNumber, users);
+            }
 
             // Load selector's bets for the current week
             if (_selector != null && _currentWeek != null)
