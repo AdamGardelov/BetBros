@@ -9,6 +9,7 @@ public interface IDataStore
     List<User> GetUsers();
     User? GetUserById(int id);
     User? GetUserByUsername(string username);
+    User UpdateUser(User user);
 
     // Game Weeks
     List<GameWeek> GetGameWeeks();

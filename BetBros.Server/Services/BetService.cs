@@ -184,7 +184,7 @@ public class BetService(IDataStore dataStore) : IBetService
             var totalBets = scoredBets.Count;
             var totalWins = scoredBets.Count(b => b.Status == BetStatus.Won);
 
-            var accuracy = totalBets > 0 ? (decimal)totalWins / totalBets * 200 : 0;
+            var accuracy = totalBets > 0 ? (decimal)totalWins / totalBets * 100 : 0;
 
             stats[user.Id] = new UserStats
             {
@@ -246,12 +246,10 @@ public class BetService(IDataStore dataStore) : IBetService
     public FinancialSummary GetFinancialSummary()
     {
         var financialStats = GetFinancialStats();
-        var totalBet = financialStats.Values.Sum(s => s.TotalBet);
         var totalWon = financialStats.Values.Sum(s => s.TotalWon);
         var totalLost = financialStats.Values.Sum(s => s.TotalLost);
         // NetProfit is already calculated correctly in GetFinancialStats (sum of all NetProfit values)
         var netProfit = financialStats.Values.Sum(s => s.NetProfit);
-        var roi = totalBet > 0 ? (netProfit / totalBet) * 100 : 0;
 
         var gameWeeks = dataStore.GetGameWeeks();
         var games = dataStore.GetGames();
@@ -261,6 +259,10 @@ public class BetService(IDataStore dataStore) : IBetService
             var weekGames = games.Where(g => g.GameWeekId == gw.Id).ToList();
             return weekGames.Count == 3 && weekGames.All(g => g.Status == GameStatus.Completed && g.HomeScore.HasValue);
         }).Count();
+
+        // TotalBet should be 200kr per completed week (not summing per-user bets)
+        var totalBet = completedWeeks * 200m;
+        var roi = totalBet > 0 ? (netProfit / totalBet) * 100 : 0;
 
         return new FinancialSummary
         {

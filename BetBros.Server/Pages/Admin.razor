@@ -80,6 +80,58 @@ else
     </MudPaper>
 
     <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h6" Class="mb-4">Hantera Spelarordning (Rotation Order)</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">
+            Rotation Order bestämmer i vilken ordning spelarna väljer matcher. Lägre nummer = tidigare i rotationen.
+        </MudText>
+        @if (_allUsers.Any())
+        {
+            <MudTable Items="_allUsers.OrderBy(u => u.RotationOrder)" Hover="true" Dense="true" Class="mt-3">
+                <HeaderContent>
+                    <MudTh>Spelare</MudTh>
+                    <MudTh>Nuvarande Rotation Order</MudTh>
+                    <MudTh>Ny Rotation Order</MudTh>
+                    <MudTh>Åtgärd</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Spelare">
+                        <MudText Typo="Typo.body1"><strong>@context.DisplayName</strong></MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Nuvarande">
+                        <MudText Typo="Typo.body1">@context.RotationOrder</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Ny">
+                        <MudNumericField Value="@GetRotationOrderValue(context.Id)"
+                                         ValueChanged="@((int? value) => SetRotationOrderValue(context.Id, value))"
+                                         Min="0"
+                                         Max="@(_allUsers.Count - 1)"
+                                         Variant="Variant.Outlined"
+                                         Dense="true"
+                                         Style="max-width: 120px;" />
+                    </MudTd>
+                    <MudTd DataLabel="Åtgärd">
+                        <MudButton Size="Size.Small"
+                                  Variant="Variant.Outlined"
+                                  Color="Color.Primary"
+                                  OnClick="@(() => UpdateUserRotationOrder(context.Id))"
+                                  Disabled="_isSaving">
+                            Uppdatera
+                        </MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+            <MudAlert Severity="Severity.Warning" Class="mt-3">
+                <strong>Varning:</strong> Ändringar i rotation order påverkar hur framtida veckor beräknas. 
+                Befintliga veckor påverkas inte automatiskt - använd "Verifiera veckor" för att kontrollera och uppdatera.
+            </MudAlert>
+        }
+        else
+        {
+            <MudText>Inga spelare hittades.</MudText>
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mb-4">
         <MudText Typo="Typo.h6" Class="mb-4">Välj Vecka och Spelare</MudText>
         <MudGrid>
             <MudItem xs="12" sm="6">
@@ -116,7 +168,8 @@ else
         <MudText Typo="Typo.body2" Class="mb-2">Skapa ny vecka</MudText>
         <MudGrid>
             <MudItem xs="12" sm="4">
-                <MudNumericField @bind-Value="_newWeekNumber"
+                <MudNumericField Value="_newWeekNumber"
+                                 ValueChanged="@((int? value) => OnNewWeekNumberValueChanged(value))"
                                  Label="Veckonummer"
                                  Variant="Variant.Outlined"
                                  Min="1"
@@ -132,6 +185,12 @@ else
                         <MudSelectItem Value="@user.Id">@user.DisplayName</MudSelectItem>
                     }
                 </MudSelect>
+                @if (_predictedSelectorId > 0 && _newWeekSelectorId != _predictedSelectorId)
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Info" Class="mt-1">
+                        Förväntad: @(_allUsers.FirstOrDefault(u => u.Id == _predictedSelectorId)?.DisplayName ?? "")
+                    </MudText>
+                }
             </MudItem>
             <MudItem xs="12" sm="4" Class="d-flex align-center">
                 <MudButton Variant="Variant.Outlined"
@@ -598,6 +657,8 @@ else
     private UserBetModel? _newGameSelectorBet;
     private int _newSelectorId;
     private List<WeekVerificationResult> _weekVerificationResults = [];
+    private int _predictedSelectorId;
+    private Dictionary<int, int?> _rotationOrderValues = new();
 
     private class UserBetModel
     {
@@ -653,6 +714,12 @@ else
         _allWeeks = GameWeekService.GetAllWeeks();
         _allUsers = DataStore.GetUsers();
         _allTeamNames = DataStore.GetTeams().Select(t => t.Name).OrderBy(n => n).ToList();
+        
+        // Initialize rotation order values
+        foreach (var user in _allUsers)
+        {
+            _rotationOrderValues[user.Id] = user.RotationOrder;
+        }
 
         // If no weeks exist, suggest creating week 1
         if (!_allWeeks.Any())
@@ -660,8 +727,23 @@ else
             _newWeekNumber = 1;
             if (_allUsers.Any())
             {
-                _newWeekSelectorId = _allUsers.First().Id;
+                // Use rotation calculator for week 1
+                var predictedSelector = RotationCalculator.GetSelectorForWeek(1, _allUsers);
+                _newWeekSelectorId = predictedSelector.Id;
+                _predictedSelectorId = predictedSelector.Id;
             }
+        }
+        else if (_newWeekNumber.HasValue)
+        {
+            // Auto-calculate predicted selector for the week number being created
+            CalculatePredictedSelector();
+        }
+        else
+        {
+            // Suggest next week number
+            var maxWeek = _allWeeks.Max(w => w.WeekNumber);
+            _newWeekNumber = maxWeek + 1;
+            CalculatePredictedSelector();
         }
 
         // Load existing net profit if week is already selected
@@ -1193,6 +1275,121 @@ else
         }
     }
 
+    private void OnNewWeekNumberValueChanged(int? value)
+    {
+        _newWeekNumber = value;
+        CalculatePredictedSelector();
+        StateHasChanged();
+    }
+
+    private int? GetRotationOrderValue(int userId)
+    {
+        if (!_rotationOrderValues.ContainsKey(userId))
+        {
+            var user = _allUsers.FirstOrDefault(u => u.Id == userId);
+            _rotationOrderValues[userId] = user?.RotationOrder ?? 0;
+        }
+        return _rotationOrderValues[userId];
+    }
+
+    private void SetRotationOrderValue(int userId, int? value)
+    {
+        _rotationOrderValues[userId] = value;
+    }
+
+    private async Task UpdateUserRotationOrder(int userId)
+    {
+        if (!_rotationOrderValues.ContainsKey(userId))
+        {
+            Snackbar.Add("Inget värde att uppdatera", Severity.Warning);
+            return;
+        }
+
+        var newRotationOrder = _rotationOrderValues[userId];
+        if (!newRotationOrder.HasValue)
+        {
+            Snackbar.Add("Ogiltigt rotation order värde", Severity.Warning);
+            return;
+        }
+
+        // Check if another user already has this rotation order
+        var existingUser = _allUsers.FirstOrDefault(u => u.Id != userId && u.RotationOrder == newRotationOrder.Value);
+        if (existingUser != null)
+        {
+            Snackbar.Add($"Rotation order {newRotationOrder.Value} är redan använd av {existingUser.DisplayName}", Severity.Warning);
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            var user = _allUsers.FirstOrDefault(u => u.Id == userId);
+            if (user == null)
+            {
+                Snackbar.Add("Spelare hittades inte", Severity.Error);
+                return;
+            }
+
+            user.RotationOrder = newRotationOrder.Value;
+            DataStore.UpdateUser(user);
+            
+            // Refresh users list
+            _allUsers = DataStore.GetUsers();
+            
+            Snackbar.Add($"Rotation order för {user.DisplayName} uppdaterad till {newRotationOrder.Value}", Severity.Success);
+            
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fel: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void CalculatePredictedSelector()
+    {
+        _predictedSelectorId = 0;
+        
+        if (!_newWeekNumber.HasValue || _newWeekNumber.Value < 1)
+        {
+            return;
+        }
+
+        var orderedUsers = _allUsers.OrderBy(u => u.RotationOrder).ToList();
+        
+        // Find the previous week (the week before the one being created)
+        var previousWeekNumber = _newWeekNumber.Value - 1;
+        var previousWeek = _allWeeks.FirstOrDefault(w => w.WeekNumber == previousWeekNumber);
+        
+        if (previousWeek != null)
+        {
+            // Use the previous week's actual selector to calculate next week
+            var previousSelector = _allUsers.FirstOrDefault(u => u.Id == previousWeek.GameSelectorId);
+            if (previousSelector != null)
+            {
+                var previousRotationOrder = previousSelector.RotationOrder;
+                var nextRotationOrder = (previousRotationOrder + 1) % orderedUsers.Count;
+                var predictedSelector = orderedUsers[nextRotationOrder];
+                _predictedSelectorId = predictedSelector.Id;
+                
+                // Auto-fill the selector (user can still change it manually)
+                _newWeekSelectorId = _predictedSelectorId;
+            }
+        }
+        else if (_newWeekNumber.Value == 1)
+        {
+            // Week 1: Use rotation calculator
+            var predictedSelector = RotationCalculator.GetSelectorForWeek(1, _allUsers);
+            _predictedSelectorId = predictedSelector.Id;
+            // Auto-fill the selector (user can still change it manually)
+            _newWeekSelectorId = _predictedSelectorId;
+        }
+    }
+
     private void VerifyAllWeeks()
     {
         _weekVerificationResults = [];
@@ -1219,7 +1416,7 @@ else
             }
             else
             {
-                // Subsequent weeks: Calculate based on previous week's ACTUAL selector (treating manual changes as correct)
+                // Subsequent weeks: Calculate what it SHOULD be based on previous week's ACTUAL selector
                 var previousWeek = orderedWeeks[i - 1];
                 var previousSelector = _allUsers.FirstOrDefault(u => u.Id == previousWeek.GameSelectorId);
                 
@@ -1237,8 +1434,21 @@ else
                     correctSelector = RotationCalculator.GetSelectorForWeek(week.WeekNumber, _allUsers);
                 }
                 
-                // For subsequent weeks, treat current selector as correct if it matches the calculated one
-                isCorrect = currentSelector?.Id == correctSelector.Id;
+                // For subsequent weeks: Treat current selector as CORRECT
+                // Manual changes are always treated as correct - we only verify that subsequent weeks follow from them
+                // The "correctSelector" is what it SHOULD be based on previous week, but if it doesn't match,
+                // it could be a manual change which is valid
+                if (currentSelector != null && previousSelector != null)
+                {
+                    var currentRotationOrder = currentSelector.RotationOrder;
+                    var expectedRotationOrder = (previousSelector.RotationOrder + 1) % orderedUsers.Count;
+                    // It's correct if it matches the expected rotation
+                    isCorrect = currentRotationOrder == expectedRotationOrder;
+                }
+                else
+                {
+                    isCorrect = currentSelector?.Id == correctSelector.Id;
+                }
             }
             
             // Check if we can fix it (no games exist)

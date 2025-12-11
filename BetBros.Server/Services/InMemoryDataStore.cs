@@ -92,6 +92,20 @@ public class InMemoryDataStore : IDataStore
     public List<User> GetUsers() => _users;
     public User? GetUserById(int id) => _users.FirstOrDefault(u => u.Id == id);
     public User? GetUserByUsername(string username) => _users.FirstOrDefault(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+    public User UpdateUser(User user)
+    {
+        var existingUser = _users.FirstOrDefault(u => u.Id == user.Id);
+        if (existingUser != null)
+        {
+            existingUser.Username = user.Username;
+            existingUser.PasswordHash = user.PasswordHash;
+            existingUser.DisplayName = user.DisplayName;
+            existingUser.RotationOrder = user.RotationOrder;
+            existingUser.IsAdmin = user.IsAdmin;
+            return existingUser;
+        }
+        return user;
+    }
 
     // Game Weeks
     public List<GameWeek> GetGameWeeks() => _gameWeeks;

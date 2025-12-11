@@ -220,7 +220,12 @@ else
         if (_currentUser == null)
             return;
 
-        _allWeeks = GameWeekService.GetAllWeeks();
+        var allWeeks = GameWeekService.GetAllWeeks();
+        var now = DateTime.UtcNow;
+        
+        // Filter out future weeks - only show weeks that have started
+        _allWeeks = allWeeks.Where(w => w.StartDate <= now).ToList();
+        
         _allUsers = DataStore.GetUsers();
         _allResults = BetService.GetAllBetResults();
 
