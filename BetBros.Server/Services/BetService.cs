@@ -7,7 +7,7 @@ namespace BetBros.Server.Services;
 
 public class BetService(IDataStore dataStore) : IBetService
 {
-    private const decimal StakePerBet = 100m / 3m; // 33.33kr per bet
+    private const decimal StakePerBet = 200m / 3m; // 66.67kr per bet
 
     public Bet PlaceBet(int userId, int gameId, BetType prediction, int? predictedHomeScore = null, int? predictedAwayScore = null)
     {
@@ -218,7 +218,9 @@ public class BetService(IDataStore dataStore) : IBetService
             var userWeeks = completedWeeks.Where(w => w.GameSelectorId == user.Id).ToList();
 
             // Calculate financial stats
-            var totalBet = userWeeks.Count * 100m; // 100kr per week
+            // TotalBet: 200kr per week where user was selector
+            var totalBet = userWeeks.Count * 200m; // 200kr per week
+            
             // NetProfit is the profit/loss amount entered by user
             // TotalWon: Only count positive weeks (just the profit amount, not bet + profit)
             var totalWon = userWeeks.Where(w => w.NetProfit.HasValue && w.NetProfit.Value > 0)
@@ -227,7 +229,24 @@ public class BetService(IDataStore dataStore) : IBetService
             var totalLost = userWeeks.Where(w => w.NetProfit.HasValue && w.NetProfit.Value < 0)
                 .Sum(w => Math.Abs(w.NetProfit!.Value));
             var netProfit = userWeeks.Where(w => w.NetProfit.HasValue).Sum(w => w.NetProfit!.Value);
+            
+            // If the absolute loss exceeds the calculated investment, it means the user invested more
+            // than the standard 200kr/week (or weeks are not being counted correctly)
+            // In that case, use the absolute value of NetProfit as the actual investment
+            if (netProfit < 0 && Math.Abs(netProfit) > totalBet)
+            {
+                totalBet = Math.Abs(netProfit);
+            }
+            
+            // ROI calculation: (Net Profit / Total Invested) * 100
+            // NetProfit represents the net result (profit or loss)
             var roi = totalBet > 0 ? (netProfit / totalBet) * 100 : 0;
+            
+            // Cap ROI at -100% for losses (you can't lose more than you invested)
+            if (roi < -100)
+            {
+                roi = -100;
+            }
 
             stats[user.Id] = new FinancialStats
             {

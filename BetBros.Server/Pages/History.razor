@@ -275,7 +275,7 @@ else
         }
 
         // For other users or if NetProfit is not set, calculate based on individual bet outcomes
-        const decimal stakePerBet = 100m / 3m; // 33.33kr per bet
+        const decimal stakePerBet = 200m / 3m; // 66.67kr per bet
         decimal totalProfit = 0;
 
         foreach (var betResult in bets)
@@ -284,12 +284,12 @@ else
             {
                 if (betResult.Bet.Status == BetStatus.Won)
                 {
-                    // Win: get stake back + equal profit (net +33.33kr)
+                    // Win: get stake back + equal profit (net +66.67kr)
                     totalProfit += stakePerBet;
                 }
                 else
                 {
-                    // Loss: lose stake (net -33.33kr)
+                    // Loss: lose stake (net -66.67kr)
                     totalProfit -= stakePerBet;
                 }
             }

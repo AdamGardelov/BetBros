@@ -2,7 +2,7 @@ namespace BetBros.Server.Models;
 
 public class FinancialStats
 {
-    public decimal TotalBet { get; set; }      // Total amount bet (100kr per week)
+    public decimal TotalBet { get; set; }      // Total amount bet (200kr per week)
     public decimal TotalWon { get; set; }      // Total winnings (only positive weeks)
     public decimal TotalLost { get; set; }      // Total losses (only negative weeks)
     public decimal NetProfit { get; set; }     // Won - Bet

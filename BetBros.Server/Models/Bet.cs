@@ -16,7 +16,7 @@ public class Bet
     public int? PredictedAwayScore { get; set; }
 
     // Stake
-    public decimal Stake { get; set; }  // Amount bet (33.33kr per bet)
+    public decimal Stake { get; set; }  // Amount bet (66.67kr per bet)
 
     // Status and financial results (null until game completed)
     public BetStatus Status { get; set; }
