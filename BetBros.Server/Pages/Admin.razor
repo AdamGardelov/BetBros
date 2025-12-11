@@ -83,6 +83,7 @@ else
         <MudText Typo="Typo.h6" Class="mb-4">Hantera Spelarordning (Rotation Order)</MudText>
         <MudText Typo="Typo.body2" Class="mb-4">
             Rotation Order bestämmer i vilken ordning spelarna väljer matcher. Lägre nummer = tidigare i rotationen.
+            Ändra alla värden och klicka sedan på "Spara alla ändringar" för att uppdatera.
         </MudText>
         @if (_allUsers.Any())
         {
@@ -91,7 +92,6 @@ else
                     <MudTh>Spelare</MudTh>
                     <MudTh>Nuvarande Rotation Order</MudTh>
                     <MudTh>Ny Rotation Order</MudTh>
-                    <MudTh>Åtgärd</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Spelare">
@@ -109,17 +109,15 @@ else
                                          Dense="true"
                                          Style="max-width: 120px;" />
                     </MudTd>
-                    <MudTd DataLabel="Åtgärd">
-                        <MudButton Size="Size.Small"
-                                  Variant="Variant.Outlined"
-                                  Color="Color.Primary"
-                                  OnClick="@(() => UpdateUserRotationOrder(context.Id))"
-                                  Disabled="_isSaving">
-                            Uppdatera
-                        </MudButton>
-                    </MudTd>
                 </RowTemplate>
             </MudTable>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="SaveAllRotationOrders"
+                       Disabled="_isSaving"
+                       Class="mt-3">
+                Spara alla ändringar
+            </MudButton>
             <MudAlert Severity="Severity.Warning" Class="mt-3">
                 <strong>Varning:</strong> Ändringar i rotation order påverkar hur framtida veckor beräknas. 
                 Befintliga veckor påverkas inte automatiskt - använd "Verifiera veckor" för att kontrollera och uppdatera.
@@ -1297,46 +1295,71 @@ else
         _rotationOrderValues[userId] = value;
     }
 
-    private async Task UpdateUserRotationOrder(int userId)
+    private async Task SaveAllRotationOrders()
     {
-        if (!_rotationOrderValues.ContainsKey(userId))
+        // Validate all rotation orders are set
+        var missingValues = _allUsers.Where(u => !_rotationOrderValues.ContainsKey(u.Id) || !_rotationOrderValues[u.Id].HasValue).ToList();
+        if (missingValues.Any())
         {
-            Snackbar.Add("Inget värde att uppdatera", Severity.Warning);
+            Snackbar.Add("Alla rotation order värden måste anges", Severity.Warning);
             return;
         }
 
-        var newRotationOrder = _rotationOrderValues[userId];
-        if (!newRotationOrder.HasValue)
+        // Validate all rotation orders are unique
+        var rotationOrders = _rotationOrderValues.Values.Where(v => v.HasValue).Select(v => v!.Value).ToList();
+        var duplicates = rotationOrders.GroupBy(r => r).Where(g => g.Count() > 1).ToList();
+        if (duplicates.Any())
         {
-            Snackbar.Add("Ogiltigt rotation order värde", Severity.Warning);
+            var duplicateValues = string.Join(", ", duplicates.Select(d => d.Key));
+            Snackbar.Add($"Rotation order måste vara unika. Duplicerade värden: {duplicateValues}", Severity.Warning);
             return;
         }
 
-        // Check if another user already has this rotation order
-        var existingUser = _allUsers.FirstOrDefault(u => u.Id != userId && u.RotationOrder == newRotationOrder.Value);
-        if (existingUser != null)
+        // Validate all rotation orders are in valid range
+        var invalidValues = rotationOrders.Where(r => r < 0 || r >= _allUsers.Count).ToList();
+        if (invalidValues.Any())
         {
-            Snackbar.Add($"Rotation order {newRotationOrder.Value} är redan använd av {existingUser.DisplayName}", Severity.Warning);
+            var invalidList = string.Join(", ", invalidValues);
+            Snackbar.Add($"Ogiltiga rotation order värden: {invalidList}. Måste vara mellan 0 och {_allUsers.Count - 1}", Severity.Warning);
             return;
         }
 
         _isSaving = true;
         try
         {
-            var user = _allUsers.FirstOrDefault(u => u.Id == userId);
-            if (user == null)
+            var updatedUsers = new List<string>();
+            
+            foreach (var user in _allUsers)
             {
-                Snackbar.Add("Spelare hittades inte", Severity.Error);
-                return;
+                if (_rotationOrderValues.ContainsKey(user.Id) && _rotationOrderValues[user.Id].HasValue)
+                {
+                    var newRotationOrder = _rotationOrderValues[user.Id].Value;
+                    if (user.RotationOrder != newRotationOrder)
+                    {
+                        user.RotationOrder = newRotationOrder;
+                        DataStore.UpdateUser(user);
+                        updatedUsers.Add(user.DisplayName);
+                    }
+                }
             }
-
-            user.RotationOrder = newRotationOrder.Value;
-            DataStore.UpdateUser(user);
             
             // Refresh users list
             _allUsers = DataStore.GetUsers();
             
-            Snackbar.Add($"Rotation order för {user.DisplayName} uppdaterad till {newRotationOrder.Value}", Severity.Success);
+            // Re-initialize rotation order values with new values
+            foreach (var user in _allUsers)
+            {
+                _rotationOrderValues[user.Id] = user.RotationOrder;
+            }
+            
+            if (updatedUsers.Any())
+            {
+                Snackbar.Add($"Rotation order uppdaterad för {updatedUsers.Count} spelare: {string.Join(", ", updatedUsers)}", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Inga ändringar att spara", Severity.Info);
+            }
             
             await InvokeAsync(StateHasChanged);
         }
