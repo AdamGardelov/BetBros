@@ -49,11 +49,11 @@ else
                     <MudTd DataLabel="Status">
                         @if (context.IsCorrect)
                         {
-                            <MudChip Color="Color.Success" Size="Size.Small">Korrekt</MudChip>
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small">Korrekt</MudChip>
                         }
                         else
                         {
-                            <MudChip Color="Color.Warning" Size="Size.Small">Fel</MudChip>
+                            <MudChip T="string" Color="Color.Warning" Size="Size.Small">Fel</MudChip>
                         }
                     </MudTd>
                     <MudTd DataLabel="Åtgärd">
