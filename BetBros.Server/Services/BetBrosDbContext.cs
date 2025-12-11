@@ -39,7 +39,7 @@ public class BetBrosDbContext(DbContextOptions<BetBrosDbContext> options) : DbCo
                 Username = "carlsson",
                 PasswordHash = hash2,
                 DisplayName = "Carlsson",
-                RotationOrder = 3,
+                RotationOrder = 2,
                 CreatedAt = new DateTime(2025, 11, 24, 0, 0, 0, DateTimeKind.Utc)
             },
             new User
@@ -57,7 +57,7 @@ public class BetBrosDbContext(DbContextOptions<BetBrosDbContext> options) : DbCo
                 Username = "seeger",
                 PasswordHash = hash4,
                 DisplayName = "Seeger",
-                RotationOrder = 2,
+                RotationOrder = 3,
                 CreatedAt = new DateTime(2025, 11, 24, 0, 0, 0, DateTimeKind.Utc)
             }
         );

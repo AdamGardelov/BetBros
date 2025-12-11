@@ -49,7 +49,7 @@ public class InMemoryDataStore : IDataStore
                 Username = "seeger",
                 PasswordHash = PasswordHasher.HashPassword("password"),
                 DisplayName = "Seeger",
-                RotationOrder = 2,
+                RotationOrder = 3,
                 CreatedAt = DateTime.UtcNow
             },
             new User
@@ -58,7 +58,7 @@ public class InMemoryDataStore : IDataStore
                 Username = "carlsson",
                 PasswordHash = PasswordHasher.HashPassword("password"),
                 DisplayName = "Carlsson",
-                RotationOrder = 3,
+                RotationOrder = 2,
                 CreatedAt = DateTime.UtcNow
             }
         ];
