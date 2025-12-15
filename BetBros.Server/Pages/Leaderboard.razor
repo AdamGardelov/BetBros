@@ -27,7 +27,7 @@
                                 <MudTh>Spelare</MudTh>
                                 <MudTh>Total Vinst/Förlust</MudTh>
                                 <MudTh>Spel</MudTh>
-                                <MudTh>Träff %</MudTh>
+                                <MudTh>Vinst %</MudTh>
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd>
@@ -79,7 +79,7 @@
                                                     <MudText Typo="Typo.caption">Spel: @item.TotalBets</MudText>
                                                 </MudItem>
                                                 <MudItem xs="6">
-                                                    <MudText Typo="Typo.caption">Träff: @item.OverallAccuracy.ToString("F1")%</MudText>
+                                                    <MudText Typo="Typo.caption">Vinst %: @item.OverallAccuracy.ToString("F1")%</MudText>
                                                 </MudItem>
                                             </MudGrid>
                                         </MudItem>
@@ -134,7 +134,7 @@
                                                            Class="mt-3"
                                                            Size="Size.Small" />
                                         <MudText Typo="Typo.caption" Align="Align.Center">
-                                            Träffsäkerhet
+                                            Vinstprocent
                                         </MudText>
                                     }
                                 </MudPaper>

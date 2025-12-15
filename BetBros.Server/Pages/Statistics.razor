@@ -28,7 +28,7 @@ else
                 </MudCardHeader>
                 <MudCardContent>
                     <MudGrid>
-                        <MudItem xs="12" sm="6" md="3">
+                        <MudItem xs="6" sm="6" md="3">
                             <MudPaper Class="pa-3" Elevation="2">
                                 <MudText Typo="Typo.caption">Totalt Insatt</MudText>
                                 <MudText Typo="Typo.h5" Color="Color.Primary">
@@ -36,7 +36,7 @@ else
                                 </MudText>
                             </MudPaper>
                         </MudItem>
-                        <MudItem xs="12" sm="6" md="3">
+                        <MudItem xs="6" sm="6" md="3">
                             <MudPaper Class="pa-3" Elevation="2">
                                 <MudText Typo="Typo.caption">Totalt Vunnet</MudText>
                                 <MudText Typo="Typo.h5" Color="Color.Success">
@@ -44,7 +44,7 @@ else
                                 </MudText>
                             </MudPaper>
                         </MudItem>
-                        <MudItem xs="12" sm="6" md="3">
+                        <MudItem xs="6" sm="6" md="3">
                             <MudPaper Class="pa-3" Elevation="2">
                                 <MudText Typo="Typo.caption">Totalt Förlorat</MudText>
                                 <MudText Typo="Typo.h5" Color="Color.Error">
@@ -52,7 +52,7 @@ else
                                 </MudText>
                             </MudPaper>
                         </MudItem>
-                        <MudItem xs="12" sm="6" md="3">
+                        <MudItem xs="6" sm="6" md="3">
                             <MudPaper Class="pa-3" Elevation="2">
                                 <MudText Typo="Typo.caption">Nettoresultat</MudText>
                                 <MudText Typo="Typo.h5" Color="@(_summary.NetProfit >= 0 ? Color.Success : Color.Error)">
@@ -60,7 +60,15 @@ else
                                 </MudText>
                             </MudPaper>
                         </MudItem>
-                        <MudItem xs="12" sm="6" md="3">
+                        <MudItem xs="6" sm="6" md="3">
+                            <MudPaper Class="pa-3" Elevation="2">
+                                <MudText Typo="Typo.caption">Totalt saldo</MudText>
+                                <MudText Typo="Typo.h5" Color="Color.Info">
+                                    <strong>@_summary.TotalBalance.ToString("N0") kr</strong>
+                                </MudText>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="6" sm="6" md="3">
                             <MudPaper Class="pa-3" Elevation="2">
                                 <MudText Typo="Typo.caption">Total ROI</MudText>
                                 <MudText Typo="Typo.h5" Color="@(_summary.RoiPercent >= 0 ? Color.Success : Color.Error)">
@@ -86,48 +94,104 @@ else
                 <MudCardContent>
                     @if (_financialStats.Any())
                     {
-                        <MudTable Items="@_financialStatsList" Hover="true" Dense="true" Breakpoint="Breakpoint.Sm">
-                            <HeaderContent>
-                                <MudTh>Spelare</MudTh>
-                                <MudTh>Insatt</MudTh>
-                                <MudTh>Vunnet</MudTh>
-                                <MudTh>Förlorat</MudTh>
-                                <MudTh>Nettoresultat</MudTh>
-                                <MudTh>ROI %</MudTh>
-                                <MudTh>Veckor</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd DataLabel="Spelare">
-                                    <MudText Typo="Typo.body1"><strong>@context.DisplayName</strong></MudText>
-                                </MudTd>
-                                <MudTd DataLabel="Insatt">
-                                    <MudText Typo="Typo.body2">@context.TotalBet.ToString("N0") kr</MudText>
-                                </MudTd>
-                                <MudTd DataLabel="Vunnet">
-                                    <MudText Typo="Typo.body2">
-                                        <strong>@context.TotalWon.ToString("N0") kr</strong>
-                                    </MudText>
-                                </MudTd>
-                                <MudTd DataLabel="Förlorat">
-                                    <MudText Typo="Typo.body2" Color="Color.Error">
-                                        <strong>@context.TotalLost.ToString("N0") kr</strong>
-                                    </MudText>
-                                </MudTd>
-                                <MudTd DataLabel="Nettoresultat">
-                                    <MudText Typo="Typo.body2" Color="@(context.NetProfit >= 0 ? Color.Success : Color.Error)">
-                                        <strong>@context.NetProfit.ToString("N0") kr</strong>
-                                    </MudText>
-                                </MudTd>
-                                <MudTd DataLabel="ROI %">
-                                    <MudText Typo="Typo.body2" Color="@(context.RoiPercent >= 0 ? Color.Success : Color.Error)">
-                                        <strong>@context.RoiPercent.ToString("F1")%</strong>
-                                    </MudText>
-                                </MudTd>
-                                <MudTd DataLabel="Veckor">
-                                    <MudText Typo="Typo.body2">@context.WeeksParticipated</MudText>
-                                </MudTd>
-                            </RowTemplate>
-                        </MudTable>
+                        @* Desktop Table View *@
+                        <div class="d-none d-sm-block">
+                            <MudTable Items="@_financialStatsList" Hover="true" Dense="true" Breakpoint="Breakpoint.Sm">
+                                <HeaderContent>
+                                    <MudTh>Spelare</MudTh>
+                                    <MudTh>Insatt</MudTh>
+                                    <MudTh>Vunnet</MudTh>
+                                    <MudTh>Förlorat</MudTh>
+                                    <MudTh>Nettoresultat</MudTh>
+                                    <MudTh>ROI %</MudTh>
+                                    <MudTh>Veckor</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="Spelare">
+                                        <MudText Typo="Typo.body1"><strong>@context.DisplayName</strong></MudText>
+                                    </MudTd>
+                                    <MudTd DataLabel="Insatt">
+                                        <MudText Typo="Typo.body2">@context.TotalBet.ToString("N0") kr</MudText>
+                                    </MudTd>
+                                    <MudTd DataLabel="Vunnet">
+                                        <MudText Typo="Typo.body2">
+                                            <strong>@context.TotalWon.ToString("N0") kr</strong>
+                                        </MudText>
+                                    </MudTd>
+                                    <MudTd DataLabel="Förlorat">
+                                        <MudText Typo="Typo.body2" Color="Color.Error">
+                                            <strong>@context.TotalLost.ToString("N0") kr</strong>
+                                        </MudText>
+                                    </MudTd>
+                                    <MudTd DataLabel="Nettoresultat">
+                                        <MudText Typo="Typo.body2" Color="@(context.NetProfit >= 0 ? Color.Success : Color.Error)">
+                                            <strong>@context.NetProfit.ToString("N0") kr</strong>
+                                        </MudText>
+                                    </MudTd>
+                                    <MudTd DataLabel="ROI %">
+                                        <MudText Typo="Typo.body2" Color="@(context.RoiPercent >= 0 ? Color.Success : Color.Error)">
+                                            <strong>@context.RoiPercent.ToString("F1")%</strong>
+                                        </MudText>
+                                    </MudTd>
+                                    <MudTd DataLabel="Veckor">
+                                        <MudText Typo="Typo.body2">@context.WeeksParticipated</MudText>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </div>
+                        
+                        @* Mobile Card View *@
+                        <div class="d-sm-none">
+                            <MudStack Spacing="2">
+                                @foreach (var item in _financialStatsList)
+                                {
+                                    <MudPaper Class="pa-4" Elevation="1">
+                                        <div class="d-flex justify-space-between align-center mb-2">
+                                            <MudText Typo="Typo.h6">@item.DisplayName</MudText>
+                                        </div>
+                                        
+                                        <MudGrid Spacing="2">
+                                            @* Primary Stats *@
+                                            <MudItem xs="6">
+                                                <MudText Typo="Typo.caption" Color="Color.Default">Nettoresultat</MudText>
+                                                <MudText Typo="Typo.h6" Color="@(item.NetProfit >= 0 ? Color.Success : Color.Error)">
+                                                    <strong>@item.NetProfit.ToString("N0") kr</strong>
+                                                </MudText>
+                                            </MudItem>
+                                            <MudItem xs="6">
+                                                <MudText Typo="Typo.caption" Color="Color.Default">Totalt Saldo</MudText>
+                                                <MudText Typo="Typo.h6" Color="Color.Info">
+                                                    @{
+                                                        var balance = item.TotalBet + item.NetProfit;
+                                                    }
+                                                    <strong>@balance.ToString("N0") kr</strong>
+                                                </MudText>
+                                            </MudItem>
+
+                                            <MudItem xs="12">
+                                                <MudDivider Class="my-1"/>
+                                            </MudItem>
+
+                                            @* Secondary Stats *@
+                                            <MudItem xs="4">
+                                                <MudText Typo="Typo.caption">Insatt</MudText>
+                                                <MudText Typo="Typo.body2">@item.TotalBet.ToString("N0")</MudText>
+                                            </MudItem>
+                                            <MudItem xs="4">
+                                                <MudText Typo="Typo.caption">ROI</MudText>
+                                                <MudText Typo="Typo.body2" Color="@(item.RoiPercent >= 0 ? Color.Success : Color.Error)">
+                                                    @item.RoiPercent.ToString("F0")%
+                                                </MudText>
+                                            </MudItem>
+                                            <MudItem xs="4">
+                                                <MudText Typo="Typo.caption">Veckor</MudText>
+                                                <MudText Typo="Typo.body2">@item.WeeksParticipated</MudText>
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudPaper>
+                                }
+                            </MudStack>
+                        </div>
                     }
                     else
                     {

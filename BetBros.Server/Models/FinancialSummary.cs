@@ -8,4 +8,5 @@ public class FinancialSummary
     public decimal NetProfit { get; set; }     // Total won - total bet
     public decimal RoiPercent { get; set; }    // Overall ROI
     public int TotalWeeks { get; set; }        // Total number of weeks
+    public decimal TotalBalance { get; set; }  // Total accumulated balance (TotalBet + NetProfit)
 }

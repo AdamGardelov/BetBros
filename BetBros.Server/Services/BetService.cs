@@ -290,7 +290,8 @@ public class BetService(IDataStore dataStore) : IBetService
             TotalLost = totalLost,
             NetProfit = netProfit,
             RoiPercent = roi,
-            TotalWeeks = completedWeeks
+            TotalWeeks = completedWeeks,
+            TotalBalance = totalBet + netProfit
         };
     }
 }
