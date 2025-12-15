@@ -189,6 +189,23 @@ else
             }
 
             _currentWeek = GameWeekService.GetCurrentWeek();
+            
+            // Check if user is selector for current week. If not, check if they have a pending past week to finish.
+            if (_currentWeek.GameSelectorId != _currentUser.Id)
+            {
+                var allWeeks = GameWeekService.GetAllWeeks();
+                var pendingWeek = allWeeks
+                    .Where(w => w.GameSelectorId == _currentUser.Id && 
+                                w.WeekNumber < _currentWeek.WeekNumber && 
+                                !w.NetProfit.HasValue) // NetProfit null means not finalized
+                    .MaxBy(w => w.WeekNumber);
+
+                if (pendingWeek != null)
+                {
+                    _currentWeek = pendingWeek;
+                }
+            }
+
             _canEnterResults = GameWeekService.CanUserSelectGames(_currentUser.Id, _currentWeek.Id);
 
             if (!_canEnterResults)
