@@ -106,7 +106,15 @@
                     {
                         var currentWeek = GameWeekService.GetCurrentWeek();
                         _canSelectGames = GameWeekService.CanUserSelectGames(currentUser.Id, currentWeek.Id);
-                        _canEnterResults = _canSelectGames;
+                        
+                        // Check for pending weeks for result entry
+                        var allWeeks = GameWeekService.GetAllWeeks();
+                        var hasPendingWeek = allWeeks.Any(w => 
+                            w.GameSelectorId == currentUser.Id && 
+                            w.WeekNumber < currentWeek.WeekNumber && 
+                            !w.NetProfit.HasValue);
+
+                        _canEnterResults = _canSelectGames || hasPendingWeek;
                     }
                     catch
                     {
