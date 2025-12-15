@@ -32,7 +32,7 @@ else
     </MudText>
 
     @* Game Selection Phase - Show if < 3 games or editing a game *@
-    @if ((_existingGames.Count < 3 || _editingGameId.HasValue) && !_editingGameId.HasValue)
+    @if (_existingGames.Count < 3 || _editingGameId.HasValue)
     {
         <MudText Typo="Typo.body1" Class="mb-4">
             <strong>Steg 1:</strong> Välj 3 matcher
@@ -92,16 +92,28 @@ else
                     <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMessage</MudAlert>
                 }
 
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           OnClick="AddGame"
-                           Disabled="_isSaving">
-                    @if (_isSaving)
+                <div class="d-flex gap-4">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               OnClick="SaveGame"
+                               Disabled="_isSaving">
+                        @if (_isSaving)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        @(_editingGameId.HasValue ? "Spara Ändringar" : $"Lägg till Match ({_existingGames.Count + 1}/3)")
+                    </MudButton>
+
+                    @if (_editingGameId.HasValue)
                     {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Secondary"
+                                   OnClick="CancelEdit"
+                                   Disabled="_isSaving">
+                            Avbryt
+                        </MudButton>
                     }
-                    Lägg till Match (@(_existingGames.Count + 1)/3)
-                </MudButton>
+                </div>
             </MudForm>
         </MudPaper>
 
@@ -114,7 +126,7 @@ else
                     var canEdit = GameService.CanEditOrDeleteGame(game.Id);
                     <MudPaper Class="pa-4">
                         <MudGrid>
-                            <MudItem xs="12" sm="9">
+                            <MudItem xs="12" sm="8">
                                 <MudText>
                                     <strong>@game.HomeTeam vs @game.AwayTeam</strong><br />
                                     Speltyp: @GetBetKindText(game.BetKind)
@@ -126,11 +138,19 @@ else
                             </MudItem>
                             @if (canEdit)
                             {
-                                <MudItem xs="12" sm="3" Class="d-flex justify-end align-center">
+                                <MudItem xs="12" sm="4" Class="d-flex justify-end align-center gap-2">
+                                     <MudButton Variant="Variant.Outlined" 
+                                                Color="Color.Info" 
+                                                Size="Size.Small" 
+                                                OnClick="@(() => EditGame(game))"
+                                                Disabled="_editingGameId.HasValue">
+                                         Ändra
+                                     </MudButton>
                                     <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                                    Color="Color.Error"
                                                    Size="Size.Small"
-                                                   OnClick="@(() => DeleteGame(game.Id))" />
+                                                   OnClick="@(() => DeleteGame(game.Id))" 
+                                                   Disabled="_editingGameId.HasValue" />
                                 </MudItem>
                             }
                         </MudGrid>
@@ -171,6 +191,16 @@ else
                                 }
                             </MudText>
                         </CardHeaderContent>
+                        <CardHeaderActions>
+                           @if (GameService.CanEditOrDeleteGame(game.Id))
+                           {
+                                <MudButton Variant="Variant.Text" 
+                                           Color="Color.Info" 
+                                           OnClick="@(() => EditGame(game))">
+                                    Ändra Match
+                                </MudButton>
+                           }
+                        </CardHeaderActions>
                     </MudCardHeader>
                     <MudCardContent>
                             @if (is1X2Game)
@@ -305,7 +335,7 @@ else
     private List<Bet> _existingBets = [];
     private bool _isSaving;
     private string _errorMessage = string.Empty;
-    private readonly int? _editingGameId = null;
+    private int? _editingGameId = null;
     private int _formKey = 0;
     private List<string> _allTeamNames = [];
 
@@ -397,12 +427,36 @@ else
                 // Small delay to ensure form binding is complete
                 await Task.Delay(100);
                 StateHasChanged();
-                await AddGame();
+                await SaveGame();
             });
         }
     }
 
-    private async Task AddGame()
+    private void EditGame(Game game)
+    {
+        _editingGameId = game.Id;
+        _newGame = new NewGameModel
+        {
+            HomeTeam = game.HomeTeam,
+            AwayTeam = game.AwayTeam,
+            BetKind = game.BetKind,
+            OverUnderLine = game.OverUnderLine
+        };
+        _errorMessage = string.Empty;
+        _formKey++; // Reset form state
+        StateHasChanged();
+    }
+
+    private void CancelEdit()
+    {
+        _editingGameId = null;
+        _newGame = new NewGameModel { BetKind = BetType.HomeWin, OverUnderLine = 2.5m };
+        _errorMessage = string.Empty;
+        _formKey++;
+        StateHasChanged();
+    }
+
+    private async Task SaveGame()
     {
         _errorMessage = string.Empty;
         StateHasChanged(); // Ensure UI is updated
@@ -428,6 +482,20 @@ else
             return;
         }
 
+        // Duplicate Check
+        var isDuplicate = _existingGames.Any(g => 
+            g.HomeTeam.Equals(_newGame.HomeTeam, StringComparison.InvariantCultureIgnoreCase) && 
+            g.AwayTeam.Equals(_newGame.AwayTeam, StringComparison.InvariantCultureIgnoreCase) &&
+            g.Id != _editingGameId);
+
+        if (isDuplicate)
+        {
+            _errorMessage = "Denna match finns redan vald (samma hemma- och bortalag).";
+            StateHasChanged();
+            return;
+        }
+
+
         _isSaving = true;
         StateHasChanged();
 
@@ -436,20 +504,31 @@ else
 
         try
         {
-            GameService.CreateGame(
-                _currentWeek!.Id,
-                _newGame.HomeTeam,
-                _newGame.AwayTeam,
-                _newGame.BetKind,
-                _newGame.OverUnderLine
-            );
+            if (_editingGameId.HasValue)
+            {
+                GameService.UpdateGame(
+                    _editingGameId.Value,
+                    _newGame.HomeTeam,
+                    _newGame.AwayTeam,
+                    _newGame.BetKind,
+                    _newGame.OverUnderLine
+                );
+                Snackbar.Add($"Match uppdaterad: {_newGame.HomeTeam} vs {_newGame.AwayTeam}", Severity.Success);
+            }
+            else
+            {
+                GameService.CreateGame(
+                    _currentWeek!.Id,
+                    _newGame.HomeTeam,
+                    _newGame.AwayTeam,
+                    _newGame.BetKind,
+                    _newGame.OverUnderLine
+                );
+                Snackbar.Add($"Match tillagd: {_newGame.HomeTeam} vs {_newGame.AwayTeam}", Severity.Success);
+            }
 
-            Snackbar.Add($"Match tillagd: {_newGame.HomeTeam} vs {_newGame.AwayTeam}", Severity.Success);
-
-            // Reset form - create new instance and increment key to force re-render
-            _newGame = new NewGameModel { BetKind = BetType.HomeWin, OverUnderLine = 2.5m };
-            _errorMessage = string.Empty;
-            _formKey++; // Force form to re-render
+            // Reset form
+            CancelEdit(); // Clears edit state and resets model
 
             // Reload games
             await LoadData();
