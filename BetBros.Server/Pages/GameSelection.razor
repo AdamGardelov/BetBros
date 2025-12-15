@@ -50,7 +50,10 @@ else
                                Variant="Variant.Outlined"
                                Required="true"
                                Class="mb-4"
-                               OnKeyDown="@HandleKeyDown" />
+                               OnKeyDown="@HandleKeyDown"
+                               MaxHeight="300"
+                               Dense="true" 
+                               AnchorOrigin="Origin.BottomCenter" />
 
                 <MudAutocomplete T="string"
                                Label="Bortalag"
@@ -61,7 +64,10 @@ else
                                Variant="Variant.Outlined"
                                Required="true"
                                Class="mb-4"
-                               OnKeyDown="@HandleKeyDown" />
+                               OnKeyDown="@HandleKeyDown"
+                               MaxHeight="300"
+                               Dense="true"
+                               AnchorOrigin="Origin.BottomCenter" />
 
                 <MudSelect @bind-Value="_newGame.BetKind"
                            Label="Speltyp"
