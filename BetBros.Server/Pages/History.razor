@@ -83,7 +83,7 @@ else
                                         {
                                             <text>○</text>
                                         }
-                                        else if (bet.Bet.Status == BetStatus.Won)
+                                        else if (bet.Bet.Status == BetStatus.Won || bet.Bet.Status == BetStatus.Refunded)
                                         {
                                             <MudText Typo="Typo.body1" Color="Color.Success" Style="display: inline;">✓</MudText>
                                         }
@@ -147,6 +147,12 @@ else
                                             {
                                                 <MudText Typo="Typo.body2" Color="Color.Success">
                                                     <strong>✓ Vinst</strong>
+                                                </MudText>
+                                            }
+                                            else if (betResult.Bet.Status == BetStatus.Refunded)
+                                            {
+                                                <MudText Typo="Typo.body2" Color="Color.Success">
+                                                    <strong>✓ Återbetalning</strong>
                                                 </MudText>
                                             }
                                             else
@@ -282,7 +288,7 @@ else
         {
             if (betResult.Bet.ScoredAt.HasValue)
             {
-                if (betResult.Bet.Status == BetStatus.Won)
+                if (betResult.Bet.Status is BetStatus.Won or BetStatus.Refunded)
                 {
                     // Win: get stake back + equal profit (net +66.67kr)
                     totalProfit += stakePerBet;
@@ -316,9 +322,11 @@ else
         {
             BetType.HomeWin => "1",
             BetType.HomeWinToNil => "1 + håller nollan",
+            BetType.HomeWinDNB => "1 (DNB)",
             BetType.Draw => "X",
             BetType.AwayWin => "2",
             BetType.AwayWinToNil => "2 + håller nollan",
+            BetType.AwayWinDNB => "2 (DNB)",
             BetType.Over => "Över",
             BetType.Under => "Under",
             BetType.ExactScore => "Exakt",

@@ -10,5 +10,7 @@ public enum BetType
     OverOrUnder = 6, // Over/Under game type (not a prediction)
     ExactScore = 7,  // Exact score prediction
     HomeWinToNil = 8, // The home team wins and keeps a clean sheet (away team scores 0)
-    AwayWinToNil = 9  // The away team wins and keeps a clean sheet (home team scores 0)
+    AwayWinToNil = 9, // The away team wins and keeps a clean sheet (home team scores 0)
+    HomeWinDNB = 10,  // Home win with Draw No Bet (money back on draw)
+    AwayWinDNB = 11   // Away win with Draw No Bet (money back on draw)
 }

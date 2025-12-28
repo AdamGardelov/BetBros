@@ -331,7 +331,7 @@ else
                                               Color="Color.Primary"
                                               Size="Size.Small"
                                               FullWidth="true">
-                                        1 + nollan
+                                        1 + håller nollan
                                     </MudButton>
                                 </MudItem>
                                 <MudItem xs="6" sm="3">
@@ -358,7 +358,25 @@ else
                                               Color="Color.Primary"
                                               Size="Size.Small"
                                               FullWidth="true">
-                                        2 + nollan
+                                        2 + håller nollan
+                                    </MudButton>
+                                </MudItem>
+                                <MudItem xs="6" sm="3">
+                                    <MudButton OnClick="@(() => SetSelectorBet(BetType.HomeWinDNB))"
+                                              Variant="@(selectorBet.Prediction == BetType.HomeWinDNB ? Variant.Filled : Variant.Outlined)"
+                                              Color="Color.Secondary"
+                                              Size="Size.Small"
+                                              FullWidth="true">
+                                        1 (DNB)
+                                    </MudButton>
+                                </MudItem>
+                                <MudItem xs="6" sm="3">
+                                    <MudButton OnClick="@(() => SetSelectorBet(BetType.AwayWinDNB))"
+                                              Variant="@(selectorBet.Prediction == BetType.AwayWinDNB ? Variant.Filled : Variant.Outlined)"
+                                              Color="Color.Secondary"
+                                              Size="Size.Small"
+                                              FullWidth="true">
+                                        2 (DNB)
                                     </MudButton>
                                 </MudItem>
                             </MudGrid>

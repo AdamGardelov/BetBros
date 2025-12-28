@@ -40,6 +40,23 @@ public static class ScoringEngine
             return (status, null, null);
         }
 
+        // Handle Draw No Bet (DNB) bets - money back on draw
+        if (bet.Prediction == BetType.HomeWinDNB)
+        {
+            if (game.HomeScore == game.AwayScore)
+                return (BetStatus.Refunded, null, null);
+            status = game.HomeScore > game.AwayScore ? BetStatus.Won : BetStatus.Lost;
+            return (status, null, null);
+        }
+
+        if (bet.Prediction == BetType.AwayWinDNB)
+        {
+            if (game.HomeScore == game.AwayScore)
+                return (BetStatus.Refunded, null, null);
+            status = game.AwayScore > game.HomeScore ? BetStatus.Won : BetStatus.Lost;
+            return (status, null, null);
+        }
+
         // Handle Over/Under bets explicitly
         if (bet.Prediction == BetType.Over || bet.Prediction == BetType.Under)
         {

@@ -6,7 +6,6 @@
 @inject IGameWeekService GameWeekService
 @inject IGameService GameService
 @inject IBetService BetService
-@inject IDataStore DataStore
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
@@ -110,7 +109,7 @@ else
                 @if (_weekNetProfit.HasValue && _weekNetProfit.Value == 0)
                 {
                     <MudAlert Severity="Severity.Warning" Class="mt-2">
-                        Vinst/förlust måste vara antingen positivt (vinst) eller negativt (förlust), inte noll.
+                        Vinst/förlust måste vara antingen positivt (vinst) eller negativt (förlust), inte noll, återbetalade pengar inkluderat.
                     </MudAlert>
                 }
                 @{
@@ -162,7 +161,9 @@ else
     private GameWeek? _currentWeek;
     private bool _canEnterResults;
     private List<Game> _games = [];
+    private List<Bet> _bets = [];
     private readonly Dictionary<int, ScoreModel> _tempScores = new();
+    private readonly Dictionary<int, decimal?> _tempRefunds = new();
     private decimal? _weekNetProfit;
     private bool _isSaving;
 
@@ -212,12 +213,14 @@ else
             }
 
             _games = GameService.GetGamesForWeek(_currentWeek.Id);
+            _bets = BetService.GetUserBetsForWeek(_currentUser.Id, _currentWeek.Id);
 
             // Load existing net profit if available
             _weekNetProfit = _currentWeek.NetProfit;
 
-            // Initialize temp scores - use existing results if available, otherwise create new
+            // Initialize temp scores and refunds
             _tempScores.Clear();
+            _tempRefunds.Clear();
             foreach (var game in _games)
             {
                 if (game.HomeScore.HasValue && game.AwayScore.HasValue)
@@ -244,7 +247,7 @@ else
 
     private bool CanSubmitAllResults()
     {
-        if (_currentUser == null || _games == null || !_games.Any())
+        if (_currentUser == null || !_games.Any())
             return false;
 
         // Check if all games have valid scores in temp storage
@@ -508,6 +511,23 @@ else
         if (bet.Prediction == BetType.AwayWinToNil)
         {
             return game.AwayScore > game.HomeScore && game.HomeScore == 0;
+        }
+
+        // Handle Draw No Bet (DNB) - returns true for win, false for loss, but draw is treated as push
+        if (bet.Prediction == BetType.HomeWinDNB)
+        {
+            // Draw = push (not a loss, not a win for validation purposes we'll consider it neutral)
+            if (game.HomeScore == game.AwayScore)
+                return true; // Treat as "not a loss" for validation
+            return game.HomeScore > game.AwayScore;
+        }
+
+        if (bet.Prediction == BetType.AwayWinDNB)
+        {
+            // Draw = push (not a loss, not a win for validation purposes we'll consider it neutral)
+            if (game.HomeScore == game.AwayScore)
+                return true; // Treat as "not a loss" for validation
+            return game.AwayScore > game.HomeScore;
         }
 
         // Handle Over/Under bets explicitly

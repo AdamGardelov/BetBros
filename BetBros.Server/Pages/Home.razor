@@ -121,6 +121,12 @@
                                                                 <strong>✓ Vinst</strong>
                                                             </MudText>
                                                         }
+                                                        else if (bet.Status == BetStatus.Refunded)
+                                                        {
+                                                            <MudText Typo="Typo.body2" Color="Color.Success" Class="mt-1">
+                                                                <strong>✓ Återbetalning</strong>
+                                                            </MudText>
+                                                        }
                                                         else if (bet.Status == BetStatus.Lost)
                                                         {
                                                             <MudText Typo="Typo.body2" Color="Color.Error" Class="mt-1">
@@ -225,9 +231,11 @@
         {
             BetType.HomeWin => "1 (Hemma)",
             BetType.HomeWinToNil => "1 + höll nollan",
+            BetType.HomeWinDNB => "1 (DNB)",
             BetType.Draw => "X (Oavgjort)",
             BetType.AwayWin => "2 (Borta)",
             BetType.AwayWinToNil => "2 + höll nollan",
+            BetType.AwayWinDNB => "2 (DNB)",
             BetType.Over => "Över",
             BetType.Under => "Under",
             BetType.ExactScore => "Exakt Resultat",

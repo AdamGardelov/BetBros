@@ -253,6 +253,22 @@ else
                                             2 + håller nollan
                                         </MudButton>
                                     </MudItem>
+                                    <MudItem xs="6" sm="4">
+                                        <MudButton OnClick="@(() => SetPrediction(game.Id, BetType.HomeWinDNB))"
+                                                   Variant="@(GetTempBet(game.Id) == BetType.HomeWinDNB ? Variant.Filled : Variant.Outlined)"
+                                                   Color="Color.Secondary"
+                                                   FullWidth="true">
+                                            1 (DNB)
+                                        </MudButton>
+                                    </MudItem>
+                                    <MudItem xs="6" sm="4">
+                                        <MudButton OnClick="@(() => SetPrediction(game.Id, BetType.AwayWinDNB))"
+                                                   Variant="@(GetTempBet(game.Id) == BetType.AwayWinDNB ? Variant.Filled : Variant.Outlined)"
+                                                   Color="Color.Secondary"
+                                                   FullWidth="true">
+                                            2 (DNB)
+                                        </MudButton>
+                                    </MudItem>
                                 </MudGrid>
                             }
 

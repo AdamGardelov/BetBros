@@ -4,5 +4,6 @@ public enum BetStatus
 {
     Pending,        // Bet placed, game not completed
     Won,
-    Lost
+    Lost,
+    Refunded        // Money back (e.g., Draw No Bet when match ends in draw)
 }

@@ -13,29 +13,24 @@ public class BetService(IDataStore dataStore) : IBetService
     {
         var game = dataStore.GetGameById(gameId);
         if (game == null)
-        {
             throw new InvalidOperationException("Game not found");
-        }
 
         // Validate prediction matches the game's bet kind category
         var is1X2Prediction = prediction is BetType.HomeWin or BetType.Draw or BetType.AwayWin;
         var isWinToNilPrediction = prediction is BetType.HomeWinToNil or BetType.AwayWinToNil;
+        var isDnbPrediction = prediction is BetType.HomeWinDNB or BetType.AwayWinDNB;
         var isOverUnderPrediction = prediction is BetType.Over or BetType.Under;
         var isExactScorePrediction = prediction is BetType.ExactScore;
         var is1X2Game = game.BetKind is BetType.HomeWin or BetType.Draw or BetType.AwayWin;
         var isOverUnderGame = game.BetKind == BetType.OverOrUnder;
         var isExactScoreGame = game.BetKind is BetType.ExactScore;
 
-        if ((is1X2Game && !is1X2Prediction && !isWinToNilPrediction) || (isOverUnderGame && !isOverUnderPrediction) || (isExactScoreGame && !isExactScorePrediction))
-        {
+        if ((is1X2Game && !is1X2Prediction && !isWinToNilPrediction && !isDnbPrediction) || (isOverUnderGame && !isOverUnderPrediction) || (isExactScoreGame && !isExactScorePrediction))
             throw new ArgumentException("Prediction type does not match game bet kind", nameof(prediction));
-        }
-
+        
         // Validate exact score predictions
         if (isExactScorePrediction && (!predictedHomeScore.HasValue || !predictedAwayScore.HasValue))
-        {
             throw new ArgumentException("Exact score predictions require both home and away scores", nameof(prediction));
-        }
 
         // Check if a bet already exists - update it instead of creating new
         var existingBet = dataStore.GetBetByUserAndGame(userId, gameId);
@@ -86,9 +81,7 @@ public class BetService(IDataStore dataStore) : IBetService
         var gameWeeks = dataStore.GetGameWeeks();
 
         if (userId.HasValue)
-        {
             bets = bets.Where(b => b.UserId == userId.Value).ToList();
-        }
 
         if (gameWeekId.HasValue)
         {
@@ -159,6 +152,11 @@ public class BetService(IDataStore dataStore) : IBetService
         }
     }
 
+    public Bet? GetBetById(int betId)
+    {
+        return dataStore.GetBets().FirstOrDefault(b => b.Id == betId);
+    }
+
     public Dictionary<int, decimal> GetLeaderboard()
     {
         // Use financial stats (NetProfit from weeks) instead of bet.Profit
@@ -182,7 +180,7 @@ public class BetService(IDataStore dataStore) : IBetService
             var scoredBets = userBets.Where(b => b.ScoredAt.HasValue).ToList();
 
             var totalBets = scoredBets.Count;
-            var totalWins = scoredBets.Count(b => b.Status == BetStatus.Won);
+            var totalWins = scoredBets.Count(b => b.Status == BetStatus.Won || b.Status == BetStatus.Refunded);
 
             var accuracy = totalBets > 0 ? (decimal)totalWins / totalBets * 100 : 0;
 
@@ -234,19 +232,15 @@ public class BetService(IDataStore dataStore) : IBetService
             // than the standard 200kr/week (or weeks are not being counted correctly)
             // In that case, use the absolute value of NetProfit as the actual investment
             if (netProfit < 0 && Math.Abs(netProfit) > totalBet)
-            {
                 totalBet = Math.Abs(netProfit);
-            }
             
             // ROI calculation: (Net Profit / Total Invested) * 100
             // NetProfit represents the net result (profit or loss)
-            var roi = totalBet > 0 ? (netProfit / totalBet) * 100 : 0;
+            var roi = totalBet > 0 ? netProfit / totalBet * 100 : 0;
             
             // Cap ROI at -100% for losses (you can't lose more than you invested)
             if (roi < -100)
-            {
                 roi = -100;
-            }
 
             stats[user.Id] = new FinancialStats
             {
@@ -281,7 +275,7 @@ public class BetService(IDataStore dataStore) : IBetService
 
         // TotalBet should be 200kr per completed week (not summing per-user bets)
         var totalBet = completedWeeks * 200m;
-        var roi = totalBet > 0 ? (netProfit / totalBet) * 100 : 0;
+        var roi = totalBet > 0 ? netProfit / totalBet * 100 : 0;
 
         return new FinancialSummary
         {
