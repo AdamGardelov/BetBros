@@ -288,10 +288,14 @@ else
         {
             if (betResult.Bet.ScoredAt.HasValue)
             {
-                if (betResult.Bet.Status is BetStatus.Won or BetStatus.Refunded)
+                if (betResult.Bet.Status == BetStatus.Won)
                 {
                     // Win: get stake back + equal profit (net +66.67kr)
                     totalProfit += stakePerBet;
+                }
+                else if (betResult.Bet.Status == BetStatus.Refunded)
+                {
+                    // Refund: get stake back (net 0kr) - do nothing
                 }
                 else
                 {

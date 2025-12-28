@@ -76,33 +76,31 @@ public class BetService(IDataStore dataStore) : IBetService
     public List<BetResult> GetAllBetResults(int? userId = null, int? gameWeekId = null)
     {
         var bets = dataStore.GetBets();
-        var games = dataStore.GetGames();
-        var users = dataStore.GetUsers();
-        var gameWeeks = dataStore.GetGameWeeks();
+        var games = dataStore.GetGames().ToDictionary(g => g.Id);
+        var users = dataStore.GetUsers().ToDictionary(u => u.Id);
+        var gameWeeks = dataStore.GetGameWeeks().ToDictionary(gw => gw.Id);
 
         if (userId.HasValue)
             bets = bets.Where(b => b.UserId == userId.Value).ToList();
 
-        if (gameWeekId.HasValue)
-        {
-            var gameIds = games.Where(g => g.GameWeekId == gameWeekId.Value).Select(g => g.Id).ToList();
-            bets = bets.Where(b => gameIds.Contains(b.GameId)).ToList();
-        }
+        var results = new List<BetResult>();
 
-        var results = bets.Select(bet =>
+        foreach (var bet in bets)
         {
-            var game = games.First(g => g.Id == bet.GameId);
-            var user = users.First(u => u.Id == bet.UserId);
-            var gameWeek = gameWeeks.First(gw => gw.Id == game.GameWeekId);
+            if (!games.TryGetValue(bet.GameId, out var game)) continue;
+            if (!users.TryGetValue(bet.UserId, out var user)) continue;
+            if (!gameWeeks.TryGetValue(game.GameWeekId, out var gameWeek)) continue;
 
-            return new BetResult
+            if (gameWeekId.HasValue && gameWeek.Id != gameWeekId.Value) continue;
+
+            results.Add(new BetResult
             {
                 Bet = bet,
                 Game = game,
                 User = user,
                 GameWeek = gameWeek
-            };
-        }).ToList();
+            });
+        }
 
         return results.OrderByDescending(r => r.Game.CreatedAt).ToList();
     }
