@@ -134,6 +134,21 @@ else
                                                 <text> (@betResult.Game.HomeScore - @betResult.Game.AwayScore)</text>
                                             }
                                         </MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Info">
+                                            @GetBetKindText(betResult.Game.BetKind)
+                                            @if (betResult.Game.BetKind == BetType.OverOrUnder && betResult.Game.OverUnderLine.HasValue)
+                                            {
+                                                <text> (@betResult.Game.OverUnderLine mål)</text>
+                                            }
+                                            @if ((betResult.Game.BetKind == BetType.HomeWinAH || betResult.Game.BetKind == BetType.AwayWinAH) && betResult.Game.AsianHandicapLine.HasValue)
+                                            {
+                                                <text> (Linje: @betResult.Game.AsianHandicapLine)</text>
+                                            }
+                                            @if ((betResult.Game.BetKind == BetType.HomeWinH3W || betResult.Game.BetKind == BetType.DrawH3W || betResult.Game.BetKind == BetType.AwayWinH3W) && betResult.Game.Handicap3WayLine.HasValue)
+                                            {
+                                                <text> (Linje: @betResult.Game.Handicap3WayLine)</text>
+                                            }
+                                        </MudText>
                                     </MudItem>
                                     <MudItem xs="12" sm="6">
                                         <MudText Typo="Typo.body2">
@@ -316,6 +331,8 @@ else
             BetType.HomeWin or BetType.Draw or BetType.AwayWin or BetType.HomeWinToNil or BetType.AwayWinToNil => "1/X/2",
             BetType.OverOrUnder => "Över eller Under",
             BetType.ExactScore => "Exakt Resultat",
+            BetType.HomeWinAH or BetType.AwayWinAH => "Asian Handicap",
+            BetType.HomeWinH3W or BetType.DrawH3W or BetType.AwayWinH3W => "Handicap 3-Way",
             _ => betKind.ToString()
         };
     }

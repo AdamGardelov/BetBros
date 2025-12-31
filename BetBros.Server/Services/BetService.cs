@@ -21,11 +21,20 @@ public class BetService(IDataStore dataStore) : IBetService
         var isDnbPrediction = prediction is BetType.HomeWinDNB or BetType.AwayWinDNB;
         var isOverUnderPrediction = prediction is BetType.Over or BetType.Under;
         var isExactScorePrediction = prediction is BetType.ExactScore;
+        var isAsianHandicapPrediction = prediction is BetType.HomeWinAH or BetType.AwayWinAH;
+        var isHandicap3WayPrediction = prediction is BetType.HomeWinH3W or BetType.DrawH3W or BetType.AwayWinH3W;
+
         var is1X2Game = game.BetKind is BetType.HomeWin or BetType.Draw or BetType.AwayWin;
         var isOverUnderGame = game.BetKind == BetType.OverOrUnder;
         var isExactScoreGame = game.BetKind is BetType.ExactScore;
+        var isAsianHandicapGame = game.BetKind is BetType.HomeWinAH or BetType.AwayWinAH;
+        var isHandicap3WayGame = game.BetKind is BetType.HomeWinH3W or BetType.DrawH3W or BetType.AwayWinH3W;
 
-        if ((is1X2Game && !is1X2Prediction && !isWinToNilPrediction && !isDnbPrediction) || (isOverUnderGame && !isOverUnderPrediction) || (isExactScoreGame && !isExactScorePrediction))
+        if ((is1X2Game && !is1X2Prediction && !isWinToNilPrediction && !isDnbPrediction) ||
+            (isOverUnderGame && !isOverUnderPrediction) ||
+            (isExactScoreGame && !isExactScorePrediction) ||
+            (isAsianHandicapGame && !isAsianHandicapPrediction) ||
+            (isHandicap3WayGame && !isHandicap3WayPrediction))
             throw new ArgumentException("Prediction type does not match game bet kind", nameof(prediction));
         
         // Validate exact score predictions

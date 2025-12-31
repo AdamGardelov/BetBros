@@ -15,27 +15,29 @@ public class GameService(IDataStore dataStore, IBetService betService) : IGameSe
             .ToList();
     }
 
-    public Game CreateGame(int gameWeekId, string homeTeam, string awayTeam, BetType betKind, decimal? overUnderLine)
+    public Game CreateGame(int gameWeekId, string homeTeam, string awayTeam, BetType betKind, decimal? overUnderLine, decimal? asianHandicapLine = null, decimal? handicap3WayLine = null)
     {
         // Validate over/under line is provided for Over/Under bets
         if (betKind == BetType.OverOrUnder && !overUnderLine.HasValue)
-        {
             throw new InvalidOperationException("Over/Under line must be specified for Over/Under bets");
-        }
+
+        // Validate Asian Handicap line is provided for Asian Handicap bets
+        if (betKind is BetType.HomeWinAH or BetType.AwayWinAH && !asianHandicapLine.HasValue)
+            throw new InvalidOperationException("Asian Handicap line must be specified for Asian Handicap bets");
+
+        // Validate Handicap 3-Way line is provided for Handicap 3-Way bets
+        if (betKind is BetType.HomeWinH3W or BetType.DrawH3W or BetType.AwayWinH3W && !handicap3WayLine.HasValue)
+            throw new InvalidOperationException("Handicap 3-Way line must be specified for Handicap 3-Way bets");
 
         // Validate max games per week
         var existingGames = dataStore.GetGamesByWeek(gameWeekId);
         if (existingGames.Count >= MaxGamesPerWeek)
-        {
             throw new InvalidOperationException($"Maximum of {MaxGamesPerWeek} games per week");
-        }
 
         // Validate game week exists
         var gameWeek = dataStore.GetGameWeekById(gameWeekId);
         if (gameWeek == null)
-        {
             throw new InvalidOperationException("Game week not found");
-        }
 
         var game = new Game
         {
@@ -44,6 +46,8 @@ public class GameService(IDataStore dataStore, IBetService betService) : IGameSe
             AwayTeam = awayTeam,
             BetKind = betKind,
             OverUnderLine = overUnderLine,
+            AsianHandicapLine = asianHandicapLine,
+            Handicap3WayLine = handicap3WayLine,
             Status = GameStatus.Scheduled,
             CreatedAt = DateTime.UtcNow
         };
@@ -51,29 +55,34 @@ public class GameService(IDataStore dataStore, IBetService betService) : IGameSe
         return dataStore.CreateGame(game);
     }
 
-    public Game UpdateGame(int gameId, string homeTeam, string awayTeam, BetType betKind, decimal? overUnderLine)
+    public Game UpdateGame(int gameId, string homeTeam, string awayTeam, BetType betKind, decimal? overUnderLine, decimal? asianHandicapLine = null, decimal? handicap3WayLine = null)
     {
         var game = dataStore.GetGameById(gameId);
         if (game == null)
-        {
             throw new InvalidOperationException("Game not found");
-        }
 
         if (!CanEditOrDeleteGame(gameId))
-        {
             throw new InvalidOperationException("Cannot edit game - it has existing bets");
-        }
 
-        // Validate over/under line is provided for Over/Under bets
-        if (betKind == BetType.OverOrUnder && !overUnderLine.HasValue)
+        switch (betKind)
         {
-            throw new InvalidOperationException("Over/Under line must be specified for Over/Under bets");
+            // Validate over/under line is provided for Over/Under bets
+            case BetType.OverOrUnder when !overUnderLine.HasValue:
+                throw new InvalidOperationException("Over/Under line must be specified for Over/Under bets");
+            // Validate Asian Handicap line is provided for Asian Handicap bets
+            case BetType.HomeWinAH or BetType.AwayWinAH when !asianHandicapLine.HasValue:
+                throw new InvalidOperationException("Asian Handicap line must be specified for Asian Handicap bets");
+            // Validate Handicap 3-Way line is provided for Handicap 3-Way bets
+            case BetType.HomeWinH3W or BetType.DrawH3W or BetType.AwayWinH3W when !handicap3WayLine.HasValue:
+                throw new InvalidOperationException("Handicap 3-Way line must be specified for Handicap 3-Way bets");
         }
 
         game.HomeTeam = homeTeam;
         game.AwayTeam = awayTeam;
         game.BetKind = betKind;
         game.OverUnderLine = overUnderLine;
+        game.AsianHandicapLine = asianHandicapLine;
+        game.Handicap3WayLine = handicap3WayLine;
 
         return dataStore.UpdateGame(game);
     }
@@ -82,14 +91,10 @@ public class GameService(IDataStore dataStore, IBetService betService) : IGameSe
     {
         var game = dataStore.GetGameById(gameId);
         if (game == null)
-        {
             throw new InvalidOperationException("Game not found");
-        }
 
         if (!CanEditOrDeleteGame(gameId))
-        {
             throw new InvalidOperationException("Cannot delete game - it has existing bets");
-        }
 
         dataStore.DeleteGame(gameId);
     }
@@ -97,11 +102,13 @@ public class GameService(IDataStore dataStore, IBetService betService) : IGameSe
     public bool CanEditOrDeleteGame(int gameId)
     {
         var game = dataStore.GetGameById(gameId);
-        if (game == null) return false;
+        if (game == null)
+            return false;
 
         // Cannot edit/delete if any bets exist
         var bets = dataStore.GetBetsByGame(gameId);
-        if (bets.Any()) return false;
+        if (bets.Any())
+            return false;
 
         return true;
     }
@@ -110,14 +117,10 @@ public class GameService(IDataStore dataStore, IBetService betService) : IGameSe
     {
         var game = dataStore.GetGameById(gameId);
         if (game == null)
-        {
             throw new InvalidOperationException("Game not found");
-        }
 
         if (!CanUserEnterResults(userId, gameId))
-        {
             throw new UnauthorizedAccessException("Only the week's game selector can enter results");
-        }
 
         game.HomeScore = homeScore;
         game.AwayScore = awayScore;
@@ -142,39 +145,41 @@ public class GameService(IDataStore dataStore, IBetService betService) : IGameSe
         return gameWeek != null && gameWeek.GameSelectorId == userId;
     }
 
-    public Game CreateGameWithResults(int gameWeekId, int gameSelectorId, string homeTeam, string awayTeam, BetType betKind, decimal? overUnderLine, int homeScore, int awayScore, int enteredByUserId)
+    public Game CreateGameWithResults(int gameWeekId, int gameSelectorId, string homeTeam, string awayTeam, BetType betKind, decimal? overUnderLine, int homeScore, int awayScore, int enteredByUserId,
+        decimal? asianHandicapLine = null, decimal? handicap3WayLine = null)
     {
-        // Validate over/under line is provided for Over/Under bets
-        if (betKind == BetType.OverOrUnder && !overUnderLine.HasValue)
+        switch (betKind)
         {
-            throw new InvalidOperationException("Over/Under line must be specified for Over/Under bets");
+            // Validate over/under line is provided for Over/Under bets
+            case BetType.OverOrUnder when !overUnderLine.HasValue:
+                throw new InvalidOperationException("Over/Under line must be specified for Over/Under bets");
+            // Validate Asian Handicap line is provided for Asian Handicap bets
+            case BetType.HomeWinAH or BetType.AwayWinAH when !asianHandicapLine.HasValue:
+                throw new InvalidOperationException("Asian Handicap line must be specified for Asian Handicap bets");
+            // Validate Handicap 3-Way line is provided for Handicap 3-Way bets
+            case BetType.HomeWinH3W or BetType.DrawH3W or BetType.AwayWinH3W when !handicap3WayLine.HasValue:
+                throw new InvalidOperationException("Handicap 3-Way line must be specified for Handicap 3-Way bets");
         }
 
         // Validate game week exists
         var gameWeek = dataStore.GetGameWeekById(gameWeekId);
         if (gameWeek == null)
-        {
             throw new InvalidOperationException("Game week not found");
-        }
 
         // Validate game selector exists
         var selector = dataStore.GetUserById(gameSelectorId);
         if (selector == null)
-        {
             throw new InvalidOperationException("Game selector not found");
-        }
 
-        // Validate entered by user exists
+        // Validate entered by a user exists
         var enteredBy = dataStore.GetUserById(enteredByUserId);
         if (enteredBy == null)
-        {
             throw new InvalidOperationException("User who entered results not found");
-        }
 
         // Admin method - bypass max games check
         // Note: This is an admin method, so we don't check MaxGamesPerWeek
 
-        // Create game with results already set
+        // Create a game with results already set
         var game = new Game
         {
             GameWeekId = gameWeekId,
@@ -182,6 +187,8 @@ public class GameService(IDataStore dataStore, IBetService betService) : IGameSe
             AwayTeam = awayTeam,
             BetKind = betKind,
             OverUnderLine = overUnderLine,
+            AsianHandicapLine = asianHandicapLine,
+            Handicap3WayLine = handicap3WayLine,
             Status = GameStatus.Completed,
             HomeScore = homeScore,
             AwayScore = awayScore,
@@ -199,24 +206,31 @@ public class GameService(IDataStore dataStore, IBetService betService) : IGameSe
     }
 
     // Admin methods that bypass normal restrictions
-    public Game AdminUpdateGame(int gameId, string homeTeam, string awayTeam, BetType betKind, decimal? overUnderLine)
+    public Game AdminUpdateGame(int gameId, string homeTeam, string awayTeam, BetType betKind, decimal? overUnderLine, decimal? asianHandicapLine = null, decimal? handicap3WayLine = null)
     {
         var game = dataStore.GetGameById(gameId);
         if (game == null)
-        {
             throw new InvalidOperationException("Game not found");
-        }
 
-        // Validate over/under line is provided for Over/Under bets
-        if (betKind == BetType.OverOrUnder && !overUnderLine.HasValue)
+        switch (betKind)
         {
-            throw new InvalidOperationException("Over/Under line must be specified for Over/Under bets");
+            // Validate over/under line is provided for Over/Under bets
+            case BetType.OverOrUnder when !overUnderLine.HasValue:
+                throw new InvalidOperationException("Over/Under line must be specified for Over/Under bets");
+            // Validate Asian Handicap line is provided for Asian Handicap bets
+            case BetType.HomeWinAH or BetType.AwayWinAH when !asianHandicapLine.HasValue:
+                throw new InvalidOperationException("Asian Handicap line must be specified for Asian Handicap bets");
+            // Validate Handicap 3-Way line is provided for Handicap 3-Way bets
+            case BetType.HomeWinH3W or BetType.DrawH3W or BetType.AwayWinH3W when !handicap3WayLine.HasValue:
+                throw new InvalidOperationException("Handicap 3-Way line must be specified for Handicap 3-Way bets");
         }
 
         game.HomeTeam = homeTeam;
         game.AwayTeam = awayTeam;
         game.BetKind = betKind;
         game.OverUnderLine = overUnderLine;
+        game.AsianHandicapLine = asianHandicapLine;
+        game.Handicap3WayLine = handicap3WayLine;
 
         return dataStore.UpdateGame(game);
     }
@@ -225,9 +239,7 @@ public class GameService(IDataStore dataStore, IBetService betService) : IGameSe
     {
         var game = dataStore.GetGameById(gameId);
         if (game == null)
-        {
             throw new InvalidOperationException("Game not found");
-        }
 
         game.HomeScore = homeScore;
         game.AwayScore = awayScore;
@@ -247,11 +259,8 @@ public class GameService(IDataStore dataStore, IBetService betService) : IGameSe
     {
         var game = dataStore.GetGameById(gameId);
         if (game == null)
-        {
             throw new InvalidOperationException("Game not found");
-        }
 
         dataStore.DeleteGame(gameId);
     }
-
 }

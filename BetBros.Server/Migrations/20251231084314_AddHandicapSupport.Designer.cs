@@ -3,6 +3,7 @@ using System;
 using BetBros.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BetBros.Server.Migrations
 {
     [DbContext(typeof(BetBrosDbContext))]
-    partial class BetBrosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251231084314_AddHandicapSupport")]
+    partial class AddHandicapSupport
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.0");

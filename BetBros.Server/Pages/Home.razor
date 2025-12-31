@@ -102,6 +102,14 @@
                                                     {
                                                         <text> (@game.OverUnderLine mål)</text>
                                                     }
+                                                    @if ((game.BetKind == BetType.HomeWinAH || game.BetKind == BetType.AwayWinAH) && game.AsianHandicapLine.HasValue)
+                                                    {
+                                                        <text> (Linje: @game.AsianHandicapLine)</text>
+                                                    }
+                                                    @if ((game.BetKind == BetType.HomeWinH3W || game.BetKind == BetType.DrawH3W || game.BetKind == BetType.AwayWinH3W) && game.Handicap3WayLine.HasValue)
+                                                    {
+                                                        <text> (Linje: @game.Handicap3WayLine)</text>
+                                                    }
                                                 </MudText>
                                             </MudItem>
                                             <MudItem xs="12" sm="6">
@@ -221,6 +229,8 @@
             BetType.HomeWin or BetType.Draw or BetType.AwayWin or BetType.HomeWinToNil or BetType.AwayWinToNil => "1/X/2",
             BetType.OverOrUnder => "Över eller Under",
             BetType.ExactScore => "Exakt Resultat",
+            BetType.HomeWinAH or BetType.AwayWinAH => "Asian Handicap",
+            BetType.HomeWinH3W or BetType.DrawH3W or BetType.AwayWinH3W => "Handicap 3-Way",
             _ => betKind.ToString()
         };
     }

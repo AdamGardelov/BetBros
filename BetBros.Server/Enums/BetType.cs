@@ -12,5 +12,10 @@ public enum BetType
     HomeWinToNil = 8, // The home team wins and keeps a clean sheet (away team scores 0)
     AwayWinToNil = 9, // The away team wins and keeps a clean sheet (home team scores 0)
     HomeWinDNB = 10,  // Home win with Draw No Bet (money back on draw)
-    AwayWinDNB = 11   // Away win with Draw No Bet (money back on draw)
+    AwayWinDNB = 11,  // Away win with Draw No Bet (money back on draw)
+    HomeWinAH = 12,   // Asian Handicap home win (with handicap line applied)
+    AwayWinAH = 13,   // Asian Handicap away win (with handicap line applied)
+    HomeWinH3W = 14,  // Handicap 3-Way home win (European Handicap with draw option)
+    DrawH3W = 15,     // Handicap 3-Way draw (European Handicap)
+    AwayWinH3W = 16   // Handicap 3-Way away win (European Handicap)
 }

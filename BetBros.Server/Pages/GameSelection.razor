@@ -52,8 +52,8 @@ else
                                Class="mb-4"
                                OnKeyDown="@HandleKeyDown"
                                MaxHeight="300"
-                               Dense="true" 
-                               AnchorOrigin="Origin.BottomCenter" />
+                               Dense="true"
+                               AnchorOrigin="Origin.BottomLeft" />
 
                 <MudAutocomplete T="string"
                                Label="Bortalag"
@@ -67,7 +67,7 @@ else
                                OnKeyDown="@HandleKeyDown"
                                MaxHeight="300"
                                Dense="true"
-                               AnchorOrigin="Origin.BottomCenter" />
+                               AnchorOrigin="Origin.BottomLeft" />
 
                 <MudSelect @bind-Value="_newGame.BetKind"
                            Label="Speltyp"
@@ -78,6 +78,8 @@ else
                     <MudSelectItem Value="BetType.HomeWin">1/X/2 (Hemmavinst, Oavgjort, Bortavinst)</MudSelectItem>
                     <MudSelectItem Value="BetType.OverOrUnder">Över eller Under (antal mål)</MudSelectItem>
                     <MudSelectItem Value="BetType.ExactScore">Exakt Resultat</MudSelectItem>
+                    <MudSelectItem Value="BetType.HomeWinAH">Asian Handicap</MudSelectItem>
+                    <MudSelectItem Value="BetType.HomeWinH3W">Handicap 3-Way (Europeiskt Handicap)</MudSelectItem>
                 </MudSelect>
 
                 @if (_newGame.BetKind == BetType.OverOrUnder)
@@ -90,6 +92,28 @@ else
                                      Step="0.5m"
                                      Class="mb-4"
                                      HelperText="T.ex. 2.5 för över/under 2.5 mål"
+                                     OnKeyDown="HandleKeyDown" />
+                }
+                @if (_newGame.BetKind == BetType.HomeWinAH || _newGame.BetKind == BetType.AwayWinAH)
+                {
+                    <MudNumericField @bind-Value="_newGame.AsianHandicapLine"
+                                     Label="Asian Handicap Linje"
+                                     Variant="Variant.Outlined"
+                                     Required="true"
+                                     Step="0.25m"
+                                     Class="mb-4"
+                                     HelperText="T.ex. -1.5 (hemmalaget ger 1.5 mål), +0.5 (hemmalaget får 0.5 mål)"
+                                     OnKeyDown="HandleKeyDown" />
+                }
+                @if (_newGame.BetKind == BetType.HomeWinH3W || _newGame.BetKind == BetType.DrawH3W || _newGame.BetKind == BetType.AwayWinH3W)
+                {
+                    <MudNumericField @bind-Value="_newGame.Handicap3WayLine"
+                                     Label="Handicap 3-Way Linje"
+                                     Variant="Variant.Outlined"
+                                     Required="true"
+                                     Step="1m"
+                                     Class="mb-4"
+                                     HelperText="T.ex. -1 (hemmalaget ger 1 mål), +2 (hemmalaget får 2 mål)"
                                      OnKeyDown="HandleKeyDown" />
                 }
 
@@ -140,6 +164,14 @@ else
                                     {
                                         <text> (@game.OverUnderLine mål)</text>
                                     }
+                                    @if ((game.BetKind == BetType.HomeWinAH || game.BetKind == BetType.AwayWinAH) && game.AsianHandicapLine.HasValue)
+                                    {
+                                        <text> (Linje: @game.AsianHandicapLine)</text>
+                                    }
+                                    @if ((game.BetKind == BetType.HomeWinH3W || game.BetKind == BetType.DrawH3W || game.BetKind == BetType.AwayWinH3W) && game.Handicap3WayLine.HasValue)
+                                    {
+                                        <text> (Linje: @game.Handicap3WayLine)</text>
+                                    }
                                 </MudText>
                             </MudItem>
                             @if (canEdit)
@@ -180,10 +212,12 @@ else
             @foreach (var game in _existingGames)
             {
                 var userBet = _existingBets.FirstOrDefault(b => b.GameId == game.Id);
-                var is1X2Game = game.BetKind == BetType.HomeWin || game.BetKind == BetType.Draw || game.BetKind == BetType.AwayWin 
+                var is1X2Game = game.BetKind == BetType.HomeWin || game.BetKind == BetType.Draw || game.BetKind == BetType.AwayWin
                     || game.BetKind == BetType.HomeWinToNil || game.BetKind == BetType.AwayWinToNil;
                 var isOverUnderGame = game.BetKind == BetType.OverOrUnder;
                 var isExactScoreGame = game.BetKind == BetType.ExactScore;
+                var isAsianHandicapGame = game.BetKind == BetType.HomeWinAH || game.BetKind == BetType.AwayWinAH;
+                var isHandicap3WayGame = game.BetKind == BetType.HomeWinH3W || game.BetKind == BetType.DrawH3W || game.BetKind == BetType.AwayWinH3W;
 
                 <MudCard>
                     <MudCardHeader>
@@ -194,6 +228,14 @@ else
                                 @if (game.BetKind == BetType.OverOrUnder && game.OverUnderLine.HasValue)
                                 {
                                     <text> (@game.OverUnderLine mål)</text>
+                                }
+                                @if ((game.BetKind == BetType.HomeWinAH || game.BetKind == BetType.AwayWinAH) && game.AsianHandicapLine.HasValue)
+                                {
+                                    <text> (Linje: @game.AsianHandicapLine)</text>
+                                }
+                                @if ((game.BetKind == BetType.HomeWinH3W || game.BetKind == BetType.DrawH3W || game.BetKind == BetType.AwayWinH3W) && game.Handicap3WayLine.HasValue)
+                                {
+                                    <text> (Linje: @game.Handicap3WayLine)</text>
                                 }
                             </MudText>
                         </CardHeaderContent>
@@ -322,6 +364,60 @@ else
                                     </MudItem>
                                 </MudGrid>
                             }
+
+                            @if (isAsianHandicapGame)
+                            {
+                                <MudText Typo="Typo.h6" Class="mb-2">Asian Handicap (Linje: @game.AsianHandicapLine)</MudText>
+                                <MudGrid Class="mb-4">
+                                    <MudItem xs="6">
+                                        <MudButton OnClick="@(() => SetPrediction(game.Id, BetType.HomeWinAH))"
+                                                   Variant="@(GetTempBet(game.Id) == BetType.HomeWinAH ? Variant.Filled : Variant.Outlined)"
+                                                   Color="Color.Primary"
+                                                   FullWidth="true">
+                                            1 (Hemma)
+                                        </MudButton>
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <MudButton OnClick="@(() => SetPrediction(game.Id, BetType.AwayWinAH))"
+                                                   Variant="@(GetTempBet(game.Id) == BetType.AwayWinAH ? Variant.Filled : Variant.Outlined)"
+                                                   Color="Color.Primary"
+                                                   FullWidth="true">
+                                            2 (Borta)
+                                        </MudButton>
+                                    </MudItem>
+                                </MudGrid>
+                            }
+
+                            @if (isHandicap3WayGame)
+                            {
+                                <MudText Typo="Typo.h6" Class="mb-2">Handicap 3-Way (Linje: @game.Handicap3WayLine)</MudText>
+                                <MudGrid Class="mb-4">
+                                    <MudItem xs="4">
+                                        <MudButton OnClick="@(() => SetPrediction(game.Id, BetType.HomeWinH3W))"
+                                                   Variant="@(GetTempBet(game.Id) == BetType.HomeWinH3W ? Variant.Filled : Variant.Outlined)"
+                                                   Color="Color.Primary"
+                                                   FullWidth="true">
+                                            1 (Hemma)
+                                        </MudButton>
+                                    </MudItem>
+                                    <MudItem xs="4">
+                                        <MudButton OnClick="@(() => SetPrediction(game.Id, BetType.DrawH3W))"
+                                                   Variant="@(GetTempBet(game.Id) == BetType.DrawH3W ? Variant.Filled : Variant.Outlined)"
+                                                   Color="Color.Primary"
+                                                   FullWidth="true">
+                                            X (Oavgjort)
+                                        </MudButton>
+                                    </MudItem>
+                                    <MudItem xs="4">
+                                        <MudButton OnClick="@(() => SetPrediction(game.Id, BetType.AwayWinH3W))"
+                                                   Variant="@(GetTempBet(game.Id) == BetType.AwayWinH3W ? Variant.Filled : Variant.Outlined)"
+                                                   Color="Color.Primary"
+                                                   FullWidth="true">
+                                            2 (Borta)
+                                        </MudButton>
+                                    </MudItem>
+                                </MudGrid>
+                            }
                     </MudCardContent>
                 </MudCard>
             }
@@ -370,6 +466,8 @@ else
         public string AwayTeam { get; set; } = string.Empty;
         public BetType BetKind { get; set; } = BetType.HomeWin;
         public decimal? OverUnderLine { get; set; } = 2.5m;
+        public decimal? AsianHandicapLine { get; set; }
+        public decimal? Handicap3WayLine { get; set; }
     }
 
     private class ScoreModel
@@ -462,7 +560,9 @@ else
             HomeTeam = game.HomeTeam,
             AwayTeam = game.AwayTeam,
             BetKind = game.BetKind,
-            OverUnderLine = game.OverUnderLine
+            OverUnderLine = game.OverUnderLine,
+            AsianHandicapLine = game.AsianHandicapLine,
+            Handicap3WayLine = game.Handicap3WayLine
         };
         _errorMessage = string.Empty;
         _formKey++; // Reset form state
@@ -504,6 +604,20 @@ else
             return;
         }
 
+        if ((_newGame.BetKind == BetType.HomeWinAH || _newGame.BetKind == BetType.AwayWinAH) && !_newGame.AsianHandicapLine.HasValue)
+        {
+            _errorMessage = "Asian Handicap linje måste anges för denna speltyp";
+            StateHasChanged();
+            return;
+        }
+
+        if ((_newGame.BetKind == BetType.HomeWinH3W || _newGame.BetKind == BetType.DrawH3W || _newGame.BetKind == BetType.AwayWinH3W) && !_newGame.Handicap3WayLine.HasValue)
+        {
+            _errorMessage = "Handicap 3-Way linje måste anges för denna speltyp";
+            StateHasChanged();
+            return;
+        }
+
         // Duplicate Check
         var isDuplicate = _existingGames.Any(g => 
             g.HomeTeam.Equals(_newGame.HomeTeam, StringComparison.InvariantCultureIgnoreCase) && 
@@ -533,7 +647,9 @@ else
                     _newGame.HomeTeam,
                     _newGame.AwayTeam,
                     _newGame.BetKind,
-                    _newGame.OverUnderLine
+                    _newGame.OverUnderLine,
+                    _newGame.AsianHandicapLine,
+                    _newGame.Handicap3WayLine
                 );
                 Snackbar.Add($"Match uppdaterad: {_newGame.HomeTeam} vs {_newGame.AwayTeam}", Severity.Success);
             }
@@ -544,7 +660,9 @@ else
                     _newGame.HomeTeam,
                     _newGame.AwayTeam,
                     _newGame.BetKind,
-                    _newGame.OverUnderLine
+                    _newGame.OverUnderLine,
+                    _newGame.AsianHandicapLine,
+                    _newGame.Handicap3WayLine
                 );
                 Snackbar.Add($"Match tillagd: {_newGame.HomeTeam} vs {_newGame.AwayTeam}", Severity.Success);
             }
@@ -699,6 +817,8 @@ else
             BetType.HomeWin or BetType.Draw or BetType.AwayWin or BetType.HomeWinToNil or BetType.AwayWinToNil => "1/X/2",
             BetType.OverOrUnder => "Över eller Under",
             BetType.ExactScore => "Exakt Resultat",
+            BetType.HomeWinAH or BetType.AwayWinAH => "Asian Handicap",
+            BetType.HomeWinH3W or BetType.DrawH3W or BetType.AwayWinH3W => "Handicap 3-Way",
             _ => betKind.ToString()
         };
     }
