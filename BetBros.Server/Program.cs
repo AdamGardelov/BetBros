@@ -52,6 +52,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BetBrosDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
     try
     {
@@ -61,10 +62,56 @@ using (var scope = app.Services.CreateScope())
     {
         // Database exists but was created with EnsureCreated() (no migration history)
         // This can happen when upgrading from EnsureCreated to Migrate
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogWarning("Database tables already exist. Skipping migration. If you need to apply migrations, delete the database file and restart.");
+        logger.LogWarning("Database tables already exist. Attempting to apply pending migrations manually...");
 
-        // Continue running - the database structure should be compatible
+        try
+        {
+            // Manually add missing columns if they don't exist
+            var connection = db.Database.GetDbConnection();
+            connection.Open();
+
+            using (var command = connection.CreateCommand())
+            {
+                // Check if AsianHandicapLine column exists
+                command.CommandText = "PRAGMA table_info(Games)";
+                using (var reader = command.ExecuteReader())
+                {
+                    bool hasAsianHandicap = false;
+                    bool hasHandicap3Way = false;
+
+                    while (reader.Read())
+                    {
+                        var columnName = reader.GetString(1);
+                        if (columnName == "AsianHandicapLine") hasAsianHandicap = true;
+                        if (columnName == "Handicap3WayLine") hasHandicap3Way = true;
+                    }
+
+                    reader.Close();
+
+                    // Add missing columns
+                    if (!hasAsianHandicap)
+                    {
+                        command.CommandText = "ALTER TABLE Games ADD COLUMN AsianHandicapLine TEXT NULL";
+                        command.ExecuteNonQuery();
+                        logger.LogInformation("Added AsianHandicapLine column to Games table");
+                    }
+
+                    if (!hasHandicap3Way)
+                    {
+                        command.CommandText = "ALTER TABLE Games ADD COLUMN Handicap3WayLine TEXT NULL";
+                        command.ExecuteNonQuery();
+                        logger.LogInformation("Added Handicap3WayLine column to Games table");
+                    }
+                }
+            }
+
+            connection.Close();
+            logger.LogInformation("Successfully applied pending schema changes");
+        }
+        catch (Exception updateEx)
+        {
+            logger.LogError(updateEx, "Failed to apply schema updates. Manual intervention may be required.");
+        }
     }
 }
 
