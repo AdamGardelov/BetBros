@@ -18,9 +18,8 @@ builder.Services.AddMudServices();
 var dbPath = "betbros.db";
 // Check if running on Azure (HOME is set)
 if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME")))
-{
     dbPath = "/home/betbros.db";
-}
+
 builder.Services.AddDbContext<BetBrosDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
 
