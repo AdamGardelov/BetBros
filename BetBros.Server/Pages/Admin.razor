@@ -139,9 +139,14 @@ else
                            ValueChanged="@((int value) => { _selectedWeekId = value; OnWeekChanged(); })">
                     @if (_allWeeks.Any())
                     {
-                        @foreach (var week in _allWeeks.OrderByDescending(w => w.WeekNumber))
+                        @foreach (var week in _allWeeks.Where(w => !w.IsCatchup).OrderByDescending(w => w.WeekNumber))
                         {
                             <MudSelectItem Value="@week.Id">Vecka @week.WeekNumber@(week.IsCancelled ? " (Inställd)" : "")</MudSelectItem>
+                        }
+                        @foreach (var week in _allWeeks.Where(w => w.IsCatchup).OrderByDescending(w => w.CreatedAt))
+                        {
+                            var catchupUser = _allUsers.FirstOrDefault(u => u.Id == week.GameSelectorId);
+                            <MudSelectItem Value="@week.Id">Catchup — @(catchupUser?.DisplayName ?? "Okänd")</MudSelectItem>
                         }
                     }
                     else
@@ -224,6 +229,29 @@ else
                            OnClick="CreateCancelledWeek"
                            Disabled="_isSaving || !_cancelledWeekNumber.HasValue">
                     Lägg till inställd vecka
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+        <MudDivider Class="my-4" />
+        <MudText Typo="Typo.body2" Class="mb-2">Skapa catchupvecka</MudText>
+        <MudGrid>
+            <MudItem xs="12" sm="4">
+                <MudSelect @bind-Value="_catchupPlayerId"
+                           Label="Spelare"
+                           Variant="Variant.Outlined"
+                           Required="true">
+                    @foreach (var user in _allUsers)
+                    {
+                        <MudSelectItem Value="@user.Id">@user.DisplayName</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4" Class="d-flex align-center">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Tertiary"
+                           OnClick="CreateCatchupWeek"
+                           Disabled="_isSaving || _catchupPlayerId <= 0">
+                    Skapa catchupvecka
                 </MudButton>
             </MudItem>
         </MudGrid>
@@ -818,6 +846,7 @@ else
     private List<WeekVerificationResult> _weekVerificationResults = [];
     private int _predictedSelectorId;
     private int? _cancelledWeekNumber;
+    private int _catchupPlayerId;
     private Dictionary<int, int?> _rotationOrderValues = new();
 
     private class UserBetModel
@@ -902,8 +931,8 @@ else
         }
         else
         {
-            // Suggest next week number
-            var maxWeek = _allWeeks.Max(w => w.WeekNumber);
+            // Suggest next week number (exclude catchup weeks which have WeekNumber = 0)
+            var maxWeek = _allWeeks.Where(w => !w.IsCatchup).Max(w => w.WeekNumber);
             _newWeekNumber = maxWeek + 1;
             CalculatePredictedSelector();
         }
@@ -1165,6 +1194,42 @@ else
 
             _allWeeks = GameWeekService.GetAllWeeks();
             _cancelledWeekNumber = null;
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fel: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task CreateCatchupWeek()
+    {
+        if (_catchupPlayerId <= 0)
+        {
+            Snackbar.Add("Välj en spelare", Severity.Warning);
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            var newWeek = GameWeekService.CreateCatchupWeek(_catchupPlayerId);
+            var player = _allUsers.FirstOrDefault(u => u.Id == _catchupPlayerId);
+            Snackbar.Add($"Catchupvecka skapad för {player?.DisplayName}", Severity.Success);
+
+            _allWeeks = GameWeekService.GetAllWeeks();
+            _selectedWeekId = newWeek.Id;
+            _selectedGameSelectorId = newWeek.GameSelectorId;
+            _newSelectorId = newWeek.GameSelectorId;
+            _catchupPlayerId = 0;
+
+            _existingGames = GameService.GetGamesForWeek(_selectedWeekId);
+            _weekNetProfit = newWeek.NetProfit;
 
             await InvokeAsync(StateHasChanged);
         }
@@ -1636,7 +1701,7 @@ else
         _allUsers = DataStore.GetUsers();
         _allWeeks = GameWeekService.GetAllWeeks();
 
-        var orderedWeeks = _allWeeks.OrderBy(w => w.WeekNumber).ToList();
+        var orderedWeeks = _allWeeks.Where(w => !w.IsCatchup).OrderBy(w => w.WeekNumber).ToList();
         var orderedUsers = _allUsers.OrderBy(u => u.RotationOrder).ToList();
 
         for (int i = 0; i < orderedWeeks.Count; i++)

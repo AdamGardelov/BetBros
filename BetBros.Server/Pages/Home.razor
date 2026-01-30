@@ -15,6 +15,12 @@
 
 <AuthorizeView>
     <Authorized>
+        @if (_activeCatchupWeek != null)
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-4">
+                Du har en aktiv catchupvecka! Gå till <MudLink Href="/valj-matcher">Välj Matcher</MudLink> för att välja matcher och spela.
+            </MudAlert>
+        }
         <MudGrid>
             <MudItem xs="12" md="6">
                 <MudCard>
@@ -176,6 +182,7 @@
 @code {
     private User? _currentUser;
     private GameWeek? _currentWeek;
+    private GameWeek? _activeCatchupWeek;
     private User? _selector;
     private User? _nextWeekSelector;
     private List<Game>? _games;
@@ -196,6 +203,13 @@
         {
             _currentUser = await AuthService.GetCurrentUserAsync();
             _currentWeek = GameWeekService.GetCurrentWeek();
+
+            // Check for active catchup week
+            if (_currentUser != null)
+            {
+                var allWeeks = GameWeekService.GetAllWeeks();
+                _activeCatchupWeek = allWeeks.FirstOrDefault(w => w.IsCatchup && w.GameSelectorId == _currentUser.Id && !w.IsComplete);
+            }
             _selector = GameWeekService.GetWeekSelector(_currentWeek.Id);
             _games = GameService.GetGamesForWeek(_currentWeek.Id);
             _leaderboard = BetService.GetLeaderboard();

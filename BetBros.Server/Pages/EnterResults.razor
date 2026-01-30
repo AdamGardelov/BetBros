@@ -26,7 +26,14 @@ else if (_currentWeek == null || _currentUser == null)
 else
 {
     <MudText Typo="Typo.body1" Class="mb-4">
-        Vecka @_currentWeek.WeekNumber - Ange slutresultat för matcher
+        @if (_currentWeek.IsCatchup)
+        {
+            <text>Catchup - Ange slutresultat för matcher</text>
+        }
+        else
+        {
+            <text>Vecka @_currentWeek.WeekNumber - Ange slutresultat för matcher</text>
+        }
     </MudText>
 
     @if (!_games.Any())
@@ -198,19 +205,28 @@ else
             }
 
             _currentWeek = GameWeekService.GetCurrentWeek();
-            
-            // ALWAYS check if they have a pending past week to finish.
-            // Result entry for past weeks takes precedence over current week (which likely has no results yet).
-            var allWeeks = GameWeekService.GetAllWeeks();
-            var pendingWeek = allWeeks
-                .Where(w => w.GameSelectorId == _currentUser.Id && 
-                            w.WeekNumber < _currentWeek.WeekNumber && 
-                            !w.NetProfit.HasValue) // NetProfit null means not finalized
-                .MaxBy(w => w.WeekNumber);
 
-            if (pendingWeek != null)
+            // Check for an active catchup week for this user first
+            var allWeeks = GameWeekService.GetAllWeeks();
+            var catchupWeek = allWeeks.FirstOrDefault(w => w.IsCatchup && w.GameSelectorId == _currentUser.Id && !w.IsComplete);
+            if (catchupWeek != null)
             {
-                _currentWeek = pendingWeek;
+                _currentWeek = catchupWeek;
+            }
+            else
+            {
+                // ALWAYS check if they have a pending past week to finish.
+                // Result entry for past weeks takes precedence over current week (which likely has no results yet).
+                var pendingWeek = allWeeks
+                    .Where(w => !w.IsCatchup && w.GameSelectorId == _currentUser.Id &&
+                                w.WeekNumber < _currentWeek.WeekNumber &&
+                                !w.NetProfit.HasValue) // NetProfit null means not finalized
+                    .MaxBy(w => w.WeekNumber);
+
+                if (pendingWeek != null)
+                {
+                    _currentWeek = pendingWeek;
+                }
             }
 
             _canEnterResults = GameWeekService.CanUserSelectGames(_currentUser.Id, _currentWeek.Id);

@@ -128,6 +128,32 @@ public class GameWeekService(IDataStore dataStore, IGameService gameService) : I
         return dataStore.CreateGameWeek(newWeek);
     }
 
+    public GameWeek CreateCatchupWeek(int gameSelectorId)
+    {
+        var selector = dataStore.GetUserById(gameSelectorId)
+            ?? throw new InvalidOperationException("Spelare hittades inte");
+
+        var now = DateTime.UtcNow;
+        // Use current calendar week dates
+        var dayOfWeek = (int)now.DayOfWeek;
+        var diff = dayOfWeek == 0 ? -6 : 1 - dayOfWeek; // Monday = start
+        var weekStart = now.Date.AddDays(diff);
+        var weekEnd = weekStart.AddDays(6).AddHours(23).AddMinutes(59).AddSeconds(59);
+
+        var newWeek = new GameWeek
+        {
+            WeekNumber = 0,
+            StartDate = DateTime.SpecifyKind(weekStart, DateTimeKind.Utc),
+            EndDate = DateTime.SpecifyKind(weekEnd, DateTimeKind.Utc),
+            GameSelectorId = gameSelectorId,
+            IsComplete = false,
+            IsCatchup = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        return dataStore.CreateGameWeek(newWeek);
+    }
+
     public User? GetWeekSelector(int gameWeekId)
     {
         var gameWeek = dataStore.GetGameWeekById(gameWeekId);
@@ -138,7 +164,11 @@ public class GameWeekService(IDataStore dataStore, IGameService gameService) : I
 
     public List<GameWeek> GetAllWeeks()
     {
-        return dataStore.GetGameWeeks().OrderBy(gw => gw.WeekNumber).ToList();
+        return dataStore.GetGameWeeks()
+            .OrderBy(gw => gw.IsCatchup) // Regular weeks first, catchup weeks last
+            .ThenBy(gw => gw.WeekNumber)
+            .ThenBy(gw => gw.CreatedAt)
+            .ToList();
     }
 
     public bool CanUserSelectGames(int userId, int gameWeekId)

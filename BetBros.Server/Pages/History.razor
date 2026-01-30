@@ -29,6 +29,11 @@ else
                     {
                         <MudSelectItem Value="@week.Id">Vecka @week.WeekNumber@(week.IsCancelled ? " (Inställd)" : "")</MudSelectItem>
                     }
+                    @foreach (var week in _catchupWeeks.OrderByDescending(w => w.CreatedAt))
+                    {
+                        var catchupUser = _allUsers.FirstOrDefault(u => u.Id == week.GameSelectorId);
+                        <MudSelectItem Value="@week.Id">Catchup — @(catchupUser?.DisplayName ?? "Okänd")</MudSelectItem>
+                    }
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="6">
@@ -46,7 +51,7 @@ else
         </MudGrid>
     </MudPaper>
 
-    @if (!_groupedResults.Any() && !_cancelledWeeks.Any())
+    @if (!_groupedResults.Any() && !_cancelledWeeks.Any() && !_catchupWeeks.Any())
     {
         <MudAlert Severity="Severity.Info">
             Ingen spelhistorik hittades för de valda filtren.
@@ -78,6 +83,27 @@ else
                         </TitleContent>
                     </MudExpansionPanel>
                 }
+                else if (entry.IsCatchup && entry.Group == null)
+                {
+                    <MudExpansionPanel Disabled="true">
+                        <TitleContent>
+                            <MudGrid>
+                                <MudItem xs="12" sm="3">
+                                    <MudText Typo="Typo.body1"><strong>Catchup — @entry.SelectorName</strong></MudText>
+                                </MudItem>
+                                <MudItem xs="12" sm="3">
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">Catchup</MudChip>
+                                </MudItem>
+                                <MudItem xs="12" sm="3">
+                                    <MudText Typo="Typo.body2">@entry.SelectorName</MudText>
+                                </MudItem>
+                                <MudItem xs="12" sm="3">
+                                    <MudText Typo="Typo.body2" Color="Color.Default">—</MudText>
+                                </MudItem>
+                            </MudGrid>
+                        </TitleContent>
+                    </MudExpansionPanel>
+                }
                 else
                 {
                     var group = entry.Group!;
@@ -85,7 +111,15 @@ else
                         <TitleContent>
                             <MudGrid>
                                 <MudItem xs="12" sm="3">
-                                    <MudText Typo="Typo.body1"><strong>Vecka @group.GameWeek.WeekNumber</strong></MudText>
+                                    @if (group.GameWeek.IsCatchup)
+                                    {
+                                        var catchupSelector = _allUsers.FirstOrDefault(u => u.Id == group.GameWeek.GameSelectorId);
+                                        <MudText Typo="Typo.body1"><strong>Catchup — @(catchupSelector?.DisplayName ?? "Okänd")</strong></MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.body1"><strong>Vecka @group.GameWeek.WeekNumber</strong></MudText>
+                                    }
                                 </MudItem>
                                 <MudItem xs="12" sm="3">
                                     <MudText Typo="Typo.body2">@group.User.DisplayName</MudText>
@@ -253,6 +287,7 @@ else
     private List<BetResult> _allResults = [];
     private List<WeekUserGroup> _groupedResults = [];
     private List<GameWeek> _cancelledWeeks = [];
+    private List<GameWeek> _catchupWeeks = [];
     private int _selectedWeekId;
     private int _selectedUserId;
 
@@ -271,8 +306,9 @@ else
         var now = DateTime.UtcNow;
         
         // Filter out future weeks - only show weeks that have started
-        _allWeeks = allWeeks.Where(w => w.StartDate <= now && !w.IsCancelled).ToList();
+        _allWeeks = allWeeks.Where(w => w.StartDate <= now && !w.IsCancelled && !w.IsCatchup).ToList();
         _cancelledWeeks = allWeeks.Where(w => w.StartDate <= now && w.IsCancelled).ToList();
+        _catchupWeeks = allWeeks.Where(w => w.IsCatchup).ToList();
         
         _allUsers = DataStore.GetUsers();
         _allResults = BetService.GetAllBetResults();
@@ -402,7 +438,9 @@ else
             {
                 WeekNumber = group.GameWeek.WeekNumber,
                 IsCancelled = false,
-                Group = group
+                IsCatchup = group.GameWeek.IsCatchup,
+                Group = group,
+                SortDate = group.GameWeek.StartDate
             });
         }
 
@@ -419,20 +457,52 @@ else
                 {
                     WeekNumber = week.WeekNumber,
                     IsCancelled = true,
-                    SelectorName = selector?.DisplayName ?? "Okänd"
+                    SelectorName = selector?.DisplayName ?? "Okänd",
+                    SortDate = week.StartDate
                 });
             }
         }
 
-        return entries.OrderByDescending(e => e.WeekNumber).ToList();
+        // Add catchup weeks that have bet results (from _groupedResults) are already included above.
+        // Add catchup weeks WITHOUT bet results (e.g. incomplete ones) as standalone entries.
+        var catchupWeekIdsInResults = _groupedResults
+            .Where(g => g.GameWeek.IsCatchup)
+            .Select(g => g.GameWeek.Id)
+            .ToHashSet();
+
+        foreach (var week in _catchupWeeks)
+        {
+            if (catchupWeekIdsInResults.Contains(week.Id))
+                continue; // Already shown via bet results
+
+            if (_selectedWeekId > 0 && week.Id != _selectedWeekId)
+                continue;
+
+            if (_selectedUserId > 0 && week.GameSelectorId != _selectedUserId)
+                continue;
+
+            var selector = _allUsers.FirstOrDefault(u => u.Id == week.GameSelectorId);
+            entries.Add(new HistoryEntry
+            {
+                WeekNumber = 0,
+                IsCancelled = false,
+                IsCatchup = true,
+                SelectorName = selector?.DisplayName ?? "Okänd",
+                SortDate = week.StartDate
+            });
+        }
+
+        return entries.OrderByDescending(e => e.SortDate).ThenByDescending(e => e.WeekNumber).ToList();
     }
 
     private class HistoryEntry
     {
         public int WeekNumber { get; set; }
         public bool IsCancelled { get; set; }
+        public bool IsCatchup { get; set; }
         public WeekUserGroup? Group { get; set; }
         public string SelectorName { get; set; } = string.Empty;
+        public DateTime SortDate { get; set; }
     }
 
     private class WeekUserGroup

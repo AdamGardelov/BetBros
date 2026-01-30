@@ -34,7 +34,14 @@ else if (!_canSelectGames)
 else
 {
     <MudText Typo="Typo.body1" Class="mb-4">
-        Vecka @_currentWeek?.WeekNumber - Du väljer matcher och spelar denna vecka!
+        @if (_currentWeek?.IsCatchup == true)
+        {
+            <text>Catchup - Du väljer matcher och spelar denna catchupvecka!</text>
+        }
+        else
+        {
+            <text>Vecka @_currentWeek?.WeekNumber - Du väljer matcher och spelar denna vecka!</text>
+        }
     </MudText>
 
     @* Game Selection Phase - Show if < 3 games or editing a game *@
@@ -500,8 +507,19 @@ else
                 return;
             }
 
-            _currentWeek = GameWeekService.GetCurrentWeek();
-            _canSelectGames = GameWeekService.CanUserSelectGames(_currentUser.Id, _currentWeek.Id);
+            // Check for an active catchup week for this user first
+            var allWeeks = GameWeekService.GetAllWeeks();
+            var catchupWeek = allWeeks.FirstOrDefault(w => w.IsCatchup && w.GameSelectorId == _currentUser.Id && !w.IsComplete);
+            if (catchupWeek != null)
+            {
+                _currentWeek = catchupWeek;
+                _canSelectGames = true;
+            }
+            else
+            {
+                _currentWeek = GameWeekService.GetCurrentWeek();
+                _canSelectGames = GameWeekService.CanUserSelectGames(_currentUser.Id, _currentWeek.Id);
+            }
 
             if (!_canSelectGames)
             {
