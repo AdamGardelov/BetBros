@@ -26,7 +26,7 @@
                     <MudCardContent>
                         @if (_currentWeek != null && _selector != null)
                         {
-                            <MudText><strong>Vecka:</strong> @_currentWeek.WeekNumber</MudText>
+                            <MudText><strong>Vecka:</strong> @_currentWeek.WeekNumber@(_currentWeek.IsCancelled ? " (Inställd)" : "")</MudText>
                             <MudText><strong>Matchväljare:</strong> @_selector.DisplayName</MudText>
                             @if (_nextWeekSelector != null)
                             {

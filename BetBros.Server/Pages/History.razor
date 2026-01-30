@@ -25,9 +25,9 @@ else
                            Variant="Variant.Outlined"
                            ValueChanged="@((int value) => { _selectedWeekId = value; FilterResults(); })">
                     <MudSelectItem Value="0">Alla veckor</MudSelectItem>
-                    @foreach (var week in _allWeeks.OrderByDescending(w => w.WeekNumber))
+                    @foreach (var week in _allWeeks.Concat(_cancelledWeeks).OrderByDescending(w => w.WeekNumber))
                     {
-                        <MudSelectItem Value="@week.Id">Vecka @week.WeekNumber</MudSelectItem>
+                        <MudSelectItem Value="@week.Id">Vecka @week.WeekNumber@(week.IsCancelled ? " (Inställd)" : "")</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
@@ -46,7 +46,7 @@ else
         </MudGrid>
     </MudPaper>
 
-    @if (!_groupedResults.Any())
+    @if (!_groupedResults.Any() && !_cancelledWeeks.Any())
     {
         <MudAlert Severity="Severity.Info">
             Ingen spelhistorik hittades för de valda filtren.
@@ -55,167 +55,192 @@ else
     else
     {
         <MudExpansionPanels MultiExpansion="true">
-            @foreach (var group in _groupedResults.OrderByDescending(g => g.GameWeek.WeekNumber))
+            @foreach (var entry in GetCombinedHistoryEntries())
             {
-                <MudExpansionPanel>
-                    <TitleContent>
-                        <MudGrid>
-                            <MudItem xs="12" sm="3">
-                                <MudText Typo="Typo.body1"><strong>Vecka @group.GameWeek.WeekNumber</strong></MudText>
-                            </MudItem>
-                            <MudItem xs="12" sm="3">
-                                <MudText Typo="Typo.body2">@group.User.DisplayName</MudText>
-                            </MudItem>
-                            <MudItem xs="12" sm="3">
-                                @{
-                                    var orderedBetsForEmojis = group.Bets.OrderBy(b => b.Game.CreatedAt).Take(3).ToList();
-                                }
-                                @for (int i = 0; i < 3; i++)
-                                {
-                                    @if (i > 0)
-                                    {
-                                        <text> </text>
+                @if (entry.IsCancelled)
+                {
+                    <MudExpansionPanel Disabled="true">
+                        <TitleContent>
+                            <MudGrid>
+                                <MudItem xs="12" sm="3">
+                                    <MudText Typo="Typo.body1"><strong>Vecka @entry.WeekNumber</strong></MudText>
+                                </MudItem>
+                                <MudItem xs="12" sm="3">
+                                    <MudChip T="string" Color="Color.Default" Size="Size.Small">Inställd</MudChip>
+                                </MudItem>
+                                <MudItem xs="12" sm="3">
+                                    <MudText Typo="Typo.body2">@entry.SelectorName</MudText>
+                                </MudItem>
+                                <MudItem xs="12" sm="3">
+                                    <MudText Typo="Typo.body2" Color="Color.Default">0 kr</MudText>
+                                </MudItem>
+                            </MudGrid>
+                        </TitleContent>
+                    </MudExpansionPanel>
+                }
+                else
+                {
+                    var group = entry.Group!;
+                    <MudExpansionPanel>
+                        <TitleContent>
+                            <MudGrid>
+                                <MudItem xs="12" sm="3">
+                                    <MudText Typo="Typo.body1"><strong>Vecka @group.GameWeek.WeekNumber</strong></MudText>
+                                </MudItem>
+                                <MudItem xs="12" sm="3">
+                                    <MudText Typo="Typo.body2">@group.User.DisplayName</MudText>
+                                </MudItem>
+                                <MudItem xs="12" sm="3">
+                                    @{
+                                        var orderedBetsForEmojis = group.Bets.OrderBy(b => b.Game.CreatedAt).Take(3).ToList();
                                     }
-                                    @if (i < orderedBetsForEmojis.Count)
+                                    @for (int i = 0; i < 3; i++)
                                     {
-                                        var bet = orderedBetsForEmojis[i];
-                                        @if (!bet.Bet.ScoredAt.HasValue)
+                                        @if (i > 0)
                                         {
-                                            <text>○</text>
+                                            <text> </text>
                                         }
-                                        else if (bet.Bet.Status == BetStatus.Won || bet.Bet.Status == BetStatus.Refunded)
+                                        @if (i < orderedBetsForEmojis.Count)
                                         {
-                                            <MudText Typo="Typo.body1" Color="Color.Success" Style="display: inline;">✓</MudText>
-                                        }
-                                        else
-                                        {
-                                            <MudText Typo="Typo.body1" Color="Color.Error" Style="display: inline;">✗</MudText>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <text>-</text>
-                                    }
-                                }
-                            </MudItem>
-                            <MudItem xs="12" sm="3">
-                                @{
-                                    var netProfit = CalculateNetProfit(group.GameWeek, group.User, group.Bets);
-                                }
-                                @if (netProfit >= 0)
-                                {
-                                    <MudText Typo="Typo.body1" Color="Color.Success">
-                                        <strong>+@netProfit.ToString("F0") kr</strong>
-                                    </MudText>
-                                }
-                                else
-                                {
-                                    <MudText Typo="Typo.body1" Color="Color.Error">
-                                        <strong>@netProfit.ToString("F0") kr</strong>
-                                    </MudText>
-                                }
-                            </MudItem>
-                        </MudGrid>
-                    </TitleContent>
-                    <ChildContent>
-                        <MudDivider Class="my-2" />
-                        @{
-                            var orderedBets = group.Bets.OrderBy(b => b.Game.CreatedAt).ToList();
-                        }
-                        @foreach (var betResult in orderedBets)
-                        {
-                            <MudPaper Class="pa-3 mb-2" Elevation="1">
-                                <MudGrid>
-                                    <MudItem xs="12">
-                                        <MudText Typo="Typo.body1">
-                                            <strong>@betResult.Game.HomeTeam vs @betResult.Game.AwayTeam</strong>
-                                            @if (betResult.Game.HomeScore.HasValue && betResult.Game.AwayScore.HasValue)
+                                            var bet = orderedBetsForEmojis[i];
+                                            @if (!bet.Bet.ScoredAt.HasValue)
                                             {
-                                                <text> (@betResult.Game.HomeScore - @betResult.Game.AwayScore)</text>
+                                                <text>○</text>
                                             }
-                                        </MudText>
-                                        <MudText Typo="Typo.body2" Color="Color.Info">
-                                            @GetBetKindText(betResult.Game.BetKind)
-                                            @if (betResult.Game.BetKind == BetType.OverOrUnder && betResult.Game.OverUnderLine.HasValue)
+                                            else if (bet.Bet.Status == BetStatus.Won || bet.Bet.Status == BetStatus.Refunded)
                                             {
-                                                <text> (@betResult.Game.OverUnderLine mål)</text>
-                                            }
-                                            @if ((betResult.Game.BetKind == BetType.HomeWinAH || betResult.Game.BetKind == BetType.AwayWinAH) && betResult.Game.AsianHandicapLine.HasValue)
-                                            {
-                                                <text> (Linje: @betResult.Game.AsianHandicapLine)</text>
-                                            }
-                                            @if ((betResult.Game.BetKind == BetType.HomeWinH3W || betResult.Game.BetKind == BetType.DrawH3W || betResult.Game.BetKind == BetType.AwayWinH3W) && betResult.Game.Handicap3WayLine.HasValue)
-                                            {
-                                                <text> (Linje: @betResult.Game.Handicap3WayLine)</text>
-                                            }
-                                        </MudText>
-                                    </MudItem>
-                                    <MudItem xs="12" sm="6">
-                                        <MudText Typo="Typo.body2">
-                                            <strong>Spel:</strong> @GetBetDisplayText(betResult.Bet)
-                                        </MudText>
-                                    </MudItem>
-                                    <MudItem xs="12" sm="6">
-                                        @if (betResult.Bet.ScoredAt.HasValue)
-                                        {
-                                            @if (betResult.Bet.Status == BetStatus.Won)
-                                            {
-                                                <MudText Typo="Typo.body2" Color="Color.Success">
-                                                    <strong>✓ Vinst</strong>
-                                                </MudText>
-                                            }
-                                            else if (betResult.Bet.Status == BetStatus.Refunded)
-                                            {
-                                                <MudText Typo="Typo.body2" Color="Color.Success">
-                                                    <strong>✓ Återbetalning</strong>
-                                                </MudText>
+                                                <MudText Typo="Typo.body1" Color="Color.Success" Style="display: inline;">✓</MudText>
                                             }
                                             else
                                             {
-                                                <MudText Typo="Typo.body2" Color="Color.Error">
-                                                    <strong>✗ Förlust</strong>
-                                                </MudText>
+                                                <MudText Typo="Typo.body1" Color="Color.Error" Style="display: inline;">✗</MudText>
                                             }
                                         }
                                         else
                                         {
-                                            <MudText Typo="Typo.body2" Color="Color.Default">
-                                                Väntar på resultat
-                                            </MudText>
+                                            <text>-</text>
                                         }
-                                    </MudItem>
-                                </MudGrid>
-                            </MudPaper>
-                        }
-                        <MudDivider Class="my-2" />
-                        <MudPaper Class="pa-3" Elevation="1">
-                            <MudGrid>
-                                <MudItem xs="12" sm="6">
-                                    <MudText Typo="Typo.body1">
-                                        <strong>Totalt för veckan</strong>
-                                    </MudText>
-                                </MudItem>
-                                <MudItem xs="12" sm="6">
-                                    @{
-                                        var weekProfit = CalculateNetProfit(group.GameWeek, group.User, group.Bets);
                                     }
-                                    @if (weekProfit >= 0)
+                                </MudItem>
+                                <MudItem xs="12" sm="3">
+                                    @{
+                                        var netProfit = CalculateNetProfit(group.GameWeek, group.User, group.Bets);
+                                    }
+                                    @if (netProfit >= 0)
                                     {
                                         <MudText Typo="Typo.body1" Color="Color.Success">
-                                            <strong>+@weekProfit.ToString("F0") kr</strong>
+                                            <strong>+@netProfit.ToString("F0") kr</strong>
                                         </MudText>
                                     }
                                     else
                                     {
                                         <MudText Typo="Typo.body1" Color="Color.Error">
-                                            <strong>@weekProfit.ToString("F0") kr</strong>
+                                            <strong>@netProfit.ToString("F0") kr</strong>
                                         </MudText>
                                     }
                                 </MudItem>
                             </MudGrid>
-                        </MudPaper>
-                    </ChildContent>
-                </MudExpansionPanel>
+                        </TitleContent>
+                        <ChildContent>
+                            <MudDivider Class="my-2" />
+                            @{
+                                var orderedBets = group.Bets.OrderBy(b => b.Game.CreatedAt).ToList();
+                            }
+                            @foreach (var betResult in orderedBets)
+                            {
+                                <MudPaper Class="pa-3 mb-2" Elevation="1">
+                                    <MudGrid>
+                                        <MudItem xs="12">
+                                            <MudText Typo="Typo.body1">
+                                                <strong>@betResult.Game.HomeTeam vs @betResult.Game.AwayTeam</strong>
+                                                @if (betResult.Game.HomeScore.HasValue && betResult.Game.AwayScore.HasValue)
+                                                {
+                                                    <text> (@betResult.Game.HomeScore - @betResult.Game.AwayScore)</text>
+                                                }
+                                            </MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Info">
+                                                @GetBetKindText(betResult.Game.BetKind)
+                                                @if (betResult.Game.BetKind == BetType.OverOrUnder && betResult.Game.OverUnderLine.HasValue)
+                                                {
+                                                    <text> (@betResult.Game.OverUnderLine mål)</text>
+                                                }
+                                                @if ((betResult.Game.BetKind == BetType.HomeWinAH || betResult.Game.BetKind == BetType.AwayWinAH) && betResult.Game.AsianHandicapLine.HasValue)
+                                                {
+                                                    <text> (Linje: @betResult.Game.AsianHandicapLine)</text>
+                                                }
+                                                @if ((betResult.Game.BetKind == BetType.HomeWinH3W || betResult.Game.BetKind == BetType.DrawH3W || betResult.Game.BetKind == BetType.AwayWinH3W) && betResult.Game.Handicap3WayLine.HasValue)
+                                                {
+                                                    <text> (Linje: @betResult.Game.Handicap3WayLine)</text>
+                                                }
+                                            </MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText Typo="Typo.body2">
+                                                <strong>Spel:</strong> @GetBetDisplayText(betResult.Bet)
+                                            </MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            @if (betResult.Bet.ScoredAt.HasValue)
+                                            {
+                                                @if (betResult.Bet.Status == BetStatus.Won)
+                                                {
+                                                    <MudText Typo="Typo.body2" Color="Color.Success">
+                                                        <strong>✓ Vinst</strong>
+                                                    </MudText>
+                                                }
+                                                else if (betResult.Bet.Status == BetStatus.Refunded)
+                                                {
+                                                    <MudText Typo="Typo.body2" Color="Color.Success">
+                                                        <strong>✓ Återbetalning</strong>
+                                                    </MudText>
+                                                }
+                                                else
+                                                {
+                                                    <MudText Typo="Typo.body2" Color="Color.Error">
+                                                        <strong>✗ Förlust</strong>
+                                                    </MudText>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <MudText Typo="Typo.body2" Color="Color.Default">
+                                                    Väntar på resultat
+                                                </MudText>
+                                            }
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudPaper>
+                            }
+                            <MudDivider Class="my-2" />
+                            <MudPaper Class="pa-3" Elevation="1">
+                                <MudGrid>
+                                    <MudItem xs="12" sm="6">
+                                        <MudText Typo="Typo.body1">
+                                            <strong>Totalt för veckan</strong>
+                                        </MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        @{
+                                            var weekProfit = CalculateNetProfit(group.GameWeek, group.User, group.Bets);
+                                        }
+                                        @if (weekProfit >= 0)
+                                        {
+                                            <MudText Typo="Typo.body1" Color="Color.Success">
+                                                <strong>+@weekProfit.ToString("F0") kr</strong>
+                                            </MudText>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.body1" Color="Color.Error">
+                                                <strong>@weekProfit.ToString("F0") kr</strong>
+                                            </MudText>
+                                        }
+                                    </MudItem>
+                                </MudGrid>
+                            </MudPaper>
+                        </ChildContent>
+                    </MudExpansionPanel>
+                }
             }
         </MudExpansionPanels>
     }
@@ -227,6 +252,7 @@ else
     private List<User> _allUsers = [];
     private List<BetResult> _allResults = [];
     private List<WeekUserGroup> _groupedResults = [];
+    private List<GameWeek> _cancelledWeeks = [];
     private int _selectedWeekId;
     private int _selectedUserId;
 
@@ -245,7 +271,8 @@ else
         var now = DateTime.UtcNow;
         
         // Filter out future weeks - only show weeks that have started
-        _allWeeks = allWeeks.Where(w => w.StartDate <= now).ToList();
+        _allWeeks = allWeeks.Where(w => w.StartDate <= now && !w.IsCancelled).ToList();
+        _cancelledWeeks = allWeeks.Where(w => w.StartDate <= now && w.IsCancelled).ToList();
         
         _allUsers = DataStore.GetUsers();
         _allResults = BetService.GetAllBetResults();
@@ -362,6 +389,50 @@ else
             return $"{bet.PredictedHomeScore}-{bet.PredictedAwayScore}";
         }
         return GetBetTypeText(bet.Prediction);
+    }
+
+    private List<HistoryEntry> GetCombinedHistoryEntries()
+    {
+        var entries = new List<HistoryEntry>();
+
+        // Add grouped bet results
+        foreach (var group in _groupedResults)
+        {
+            entries.Add(new HistoryEntry
+            {
+                WeekNumber = group.GameWeek.WeekNumber,
+                IsCancelled = false,
+                Group = group
+            });
+        }
+
+        // Add cancelled weeks (only if not filtered by user, since cancelled weeks have no user-specific data)
+        if (_selectedUserId == 0)
+        {
+            foreach (var week in _cancelledWeeks)
+            {
+                if (_selectedWeekId > 0 && week.Id != _selectedWeekId)
+                    continue;
+
+                var selector = _allUsers.FirstOrDefault(u => u.Id == week.GameSelectorId);
+                entries.Add(new HistoryEntry
+                {
+                    WeekNumber = week.WeekNumber,
+                    IsCancelled = true,
+                    SelectorName = selector?.DisplayName ?? "Okänd"
+                });
+            }
+        }
+
+        return entries.OrderByDescending(e => e.WeekNumber).ToList();
+    }
+
+    private class HistoryEntry
+    {
+        public int WeekNumber { get; set; }
+        public bool IsCancelled { get; set; }
+        public WeekUserGroup? Group { get; set; }
+        public string SelectorName { get; set; } = string.Empty;
     }
 
     private class WeekUserGroup

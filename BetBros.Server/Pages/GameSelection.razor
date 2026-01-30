@@ -19,6 +19,12 @@
 {
     <MudProgressCircular Indeterminate="true" />
 }
+else if (_currentWeek?.IsCancelled == true)
+{
+    <MudAlert Severity="Severity.Info">
+        Vecka @_currentWeek.WeekNumber är inställd. Inga matcher att välja.
+    </MudAlert>
+}
 else if (!_canSelectGames)
 {
     <MudAlert Severity="Severity.Warning">

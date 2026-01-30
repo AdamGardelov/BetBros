@@ -9,5 +9,6 @@ public class GameWeek
     public int GameSelectorId { get; set; }   // User who picks games this week
     public bool IsComplete { get; set; }      // All games completed and scored
     public decimal? NetProfit { get; set; }   // Total gain/loss for the week (positive = profit, negative = loss)
+    public bool IsCancelled { get; set; }    // Week was skipped, no games played
     public DateTime CreatedAt { get; set; }
 }

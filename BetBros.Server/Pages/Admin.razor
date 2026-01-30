@@ -141,7 +141,7 @@ else
                     {
                         @foreach (var week in _allWeeks.OrderByDescending(w => w.WeekNumber))
                         {
-                            <MudSelectItem Value="@week.Id">Vecka @week.WeekNumber</MudSelectItem>
+                            <MudSelectItem Value="@week.Id">Vecka @week.WeekNumber@(week.IsCancelled ? " (Inställd)" : "")</MudSelectItem>
                         }
                     }
                     else
@@ -196,6 +196,34 @@ else
                            OnClick="CreateNewWeek"
                            Disabled="_isSaving || !_newWeekNumber.HasValue || _newWeekSelectorId <= 0">
                     Skapa Vecka
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+        <MudDivider Class="my-4" />
+        <MudText Typo="Typo.body2" Class="mb-2">Lägg till inställd vecka</MudText>
+        <MudGrid>
+            <MudItem xs="12" sm="4">
+                <MudNumericField @bind-Value="_cancelledWeekNumber"
+                                 Label="Veckonummer"
+                                 Variant="Variant.Outlined"
+                                 Min="1"
+                                 Required="true" />
+            </MudItem>
+            <MudItem xs="12" sm="4" Class="d-flex align-center">
+                @if (_cancelledWeekNumber.HasValue && _cancelledWeekNumber.Value >= 1)
+                {
+                    var predictedSelector = RotationCalculator.GetSelectorForWeek(_cancelledWeekNumber.Value, _allUsers);
+                    <MudText Typo="Typo.body2" Color="Color.Info">
+                        Spelväljare: @predictedSelector.DisplayName
+                    </MudText>
+                }
+            </MudItem>
+            <MudItem xs="12" sm="4" Class="d-flex align-center">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Warning"
+                           OnClick="CreateCancelledWeek"
+                           Disabled="_isSaving || !_cancelledWeekNumber.HasValue">
+                    Lägg till inställd vecka
                 </MudButton>
             </MudItem>
         </MudGrid>
@@ -255,7 +283,15 @@ else
         </MudPaper>
     }
 
-    @if (_selectedWeekId > 0 && _selectedGameSelectorId > 0)
+    @if (_selectedWeekId > 0 && _allWeeks.FirstOrDefault(w => w.Id == _selectedWeekId)?.IsCancelled == true)
+    {
+        <MudPaper Class="pa-4 mb-4">
+            <MudAlert Severity="Severity.Info">
+                Denna vecka är inställd. Inga matcher eller spel kan läggas till.
+            </MudAlert>
+        </MudPaper>
+    }
+    else if (_selectedWeekId > 0 && _selectedGameSelectorId > 0)
     {
         <MudPaper Class="pa-4 mb-4">
             <MudText Typo="Typo.h6" Class="mb-4">Lägg till Match med Resultat</MudText>
@@ -781,6 +817,7 @@ else
     private int _newSelectorId;
     private List<WeekVerificationResult> _weekVerificationResults = [];
     private int _predictedSelectorId;
+    private int? _cancelledWeekNumber;
     private Dictionary<int, int?> _rotationOrderValues = new();
 
     private class UserBetModel
@@ -1099,6 +1136,36 @@ else
             _existingGames = GameService.GetGamesForWeek(_selectedWeekId);
             _weekNetProfit = newWeek.NetProfit;
             
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fel: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task CreateCancelledWeek()
+    {
+        if (!_cancelledWeekNumber.HasValue || _cancelledWeekNumber.Value < 1)
+        {
+            Snackbar.Add("Veckonummer måste anges", Severity.Warning);
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            var newWeek = GameWeekService.CreateCancelledWeek(_cancelledWeekNumber.Value);
+            var selector = _allUsers.FirstOrDefault(u => u.Id == newWeek.GameSelectorId);
+            Snackbar.Add($"Vecka {_cancelledWeekNumber.Value} markerad som inställd ({selector?.DisplayName})", Severity.Success);
+
+            _allWeeks = GameWeekService.GetAllWeeks();
+            _cancelledWeekNumber = null;
+
             await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)

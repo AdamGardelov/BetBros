@@ -92,6 +92,42 @@ public class GameWeekService(IDataStore dataStore, IGameService gameService) : I
         return dataStore.CreateGameWeek(newWeek);
     }
 
+    public GameWeek CreateCancelledWeek(int weekNumber)
+    {
+        var existingWeek = dataStore.GetGameWeeks().FirstOrDefault(w => w.WeekNumber == weekNumber);
+        if (existingWeek != null)
+        {
+            // Week already exists — mark it as cancelled if it has no games
+            var games = gameService.GetGamesForWeek(existingWeek.Id);
+            if (games.Count > 0)
+            {
+                throw new InvalidOperationException($"Vecka {weekNumber} har redan matcher och kan inte ställas in");
+            }
+
+            existingWeek.IsCancelled = true;
+            existingWeek.IsComplete = true;
+            return dataStore.UpdateGameWeek(existingWeek);
+        }
+
+        var users = dataStore.GetUsers();
+        var selector = RotationCalculator.GetSelectorForWeek(weekNumber, users);
+        var weekStart = RotationCalculator.GetWeekStart(weekNumber, _weekOneStartDate);
+        var weekEnd = RotationCalculator.GetWeekEnd(weekStart);
+
+        var newWeek = new GameWeek
+        {
+            WeekNumber = weekNumber,
+            StartDate = weekStart,
+            EndDate = weekEnd,
+            GameSelectorId = selector.Id,
+            IsComplete = true,
+            IsCancelled = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        return dataStore.CreateGameWeek(newWeek);
+    }
+
     public User? GetWeekSelector(int gameWeekId)
     {
         var gameWeek = dataStore.GetGameWeekById(gameWeekId);
