@@ -15,6 +15,24 @@ public class BetBrosDbContext(DbContextOptions<BetBrosDbContext> options) : DbCo
     {
         base.OnModelCreating(modelBuilder);
 
+        // Decimal precision for SQL Server
+        modelBuilder.Entity<Bet>(e =>
+        {
+            e.Property(b => b.Stake).HasPrecision(10, 2);
+            e.Property(b => b.Payout).HasPrecision(10, 2);
+            e.Property(b => b.Profit).HasPrecision(10, 2);
+        });
+
+        modelBuilder.Entity<Game>(e =>
+        {
+            e.Property(g => g.OverUnderLine).HasPrecision(5, 2);
+            e.Property(g => g.AsianHandicapLine).HasPrecision(5, 2);
+            e.Property(g => g.Handicap3WayLine).HasPrecision(5, 2);
+        });
+
+        modelBuilder.Entity<GameWeek>()
+            .Property(gw => gw.NetProfit).HasPrecision(10, 2);
+
         // Static password hashes - generated once to avoid non-deterministic seeding
         const string hash1 = "$2a$11$13y8bUOBLMLcqEXgkB/pPusghKhPV29R3wp1FwvdWgq.Jn5LEh3HO";
         const string hash2 = "$2a$11$V26L1B.sfS3m0zGg.phsaORWlaSL5kf28.siT2WPY1a0grcU7aM9u";

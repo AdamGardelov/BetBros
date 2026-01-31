@@ -17,20 +17,20 @@ namespace BetBros.Server.Migrations
                 name: "Bets",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    GameId = table.Column<int>(type: "INTEGER", nullable: false),
-                    UserId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Prediction = table.Column<int>(type: "INTEGER", nullable: false),
-                    PredictedHomeScore = table.Column<int>(type: "INTEGER", nullable: true),
-                    PredictedAwayScore = table.Column<int>(type: "INTEGER", nullable: true),
-                    Stake = table.Column<decimal>(type: "TEXT", nullable: false),
-                    Status = table.Column<int>(type: "INTEGER", nullable: false),
-                    Payout = table.Column<decimal>(type: "TEXT", nullable: true),
-                    Profit = table.Column<decimal>(type: "TEXT", nullable: true),
-                    Points = table.Column<int>(type: "INTEGER", nullable: true),
-                    PlacedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    ScoredAt = table.Column<DateTime>(type: "TEXT", nullable: true)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    GameId = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    Prediction = table.Column<int>(type: "int", nullable: false),
+                    PredictedHomeScore = table.Column<int>(type: "int", nullable: true),
+                    PredictedAwayScore = table.Column<int>(type: "int", nullable: true),
+                    Stake = table.Column<decimal>(type: "decimal(10,2)", precision: 10, scale: 2, nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    Payout = table.Column<decimal>(type: "decimal(10,2)", precision: 10, scale: 2, nullable: true),
+                    Profit = table.Column<decimal>(type: "decimal(10,2)", precision: 10, scale: 2, nullable: true),
+                    Points = table.Column<int>(type: "int", nullable: true),
+                    PlacedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ScoredAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -41,19 +41,21 @@ namespace BetBros.Server.Migrations
                 name: "Games",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    GameWeekId = table.Column<int>(type: "INTEGER", nullable: false),
-                    HomeTeam = table.Column<string>(type: "TEXT", nullable: false),
-                    AwayTeam = table.Column<string>(type: "TEXT", nullable: false),
-                    BetKind = table.Column<int>(type: "INTEGER", nullable: false),
-                    OverUnderLine = table.Column<decimal>(type: "TEXT", nullable: true),
-                    Status = table.Column<int>(type: "INTEGER", nullable: false),
-                    HomeScore = table.Column<int>(type: "INTEGER", nullable: true),
-                    AwayScore = table.Column<int>(type: "INTEGER", nullable: true),
-                    ResultEnteredAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    ResultEnteredBy = table.Column<int>(type: "INTEGER", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    GameWeekId = table.Column<int>(type: "int", nullable: false),
+                    HomeTeam = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    AwayTeam = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    BetKind = table.Column<int>(type: "int", nullable: false),
+                    OverUnderLine = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: true),
+                    AsianHandicapLine = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: true),
+                    Handicap3WayLine = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: true),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    HomeScore = table.Column<int>(type: "int", nullable: true),
+                    AwayScore = table.Column<int>(type: "int", nullable: true),
+                    ResultEnteredAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ResultEnteredBy = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -64,15 +66,17 @@ namespace BetBros.Server.Migrations
                 name: "GameWeeks",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    WeekNumber = table.Column<int>(type: "INTEGER", nullable: false),
-                    StartDate = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    EndDate = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    GameSelectorId = table.Column<int>(type: "INTEGER", nullable: false),
-                    IsComplete = table.Column<bool>(type: "INTEGER", nullable: false),
-                    NetProfit = table.Column<decimal>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    WeekNumber = table.Column<int>(type: "int", nullable: false),
+                    StartDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    EndDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    GameSelectorId = table.Column<int>(type: "int", nullable: false),
+                    IsComplete = table.Column<bool>(type: "bit", nullable: false),
+                    NetProfit = table.Column<decimal>(type: "decimal(10,2)", precision: 10, scale: 2, nullable: true),
+                    IsCancelled = table.Column<bool>(type: "bit", nullable: false),
+                    IsCatchup = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -83,10 +87,10 @@ namespace BetBros.Server.Migrations
                 name: "Teams",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    Name = table.Column<string>(type: "TEXT", nullable: false),
-                    League = table.Column<string>(type: "TEXT", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    League = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -97,14 +101,14 @@ namespace BetBros.Server.Migrations
                 name: "Users",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    Username = table.Column<string>(type: "TEXT", nullable: false),
-                    PasswordHash = table.Column<string>(type: "TEXT", nullable: false),
-                    DisplayName = table.Column<string>(type: "TEXT", nullable: false),
-                    RotationOrder = table.Column<int>(type: "INTEGER", nullable: false),
-                    IsAdmin = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Username = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DisplayName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    RotationOrder = table.Column<int>(type: "int", nullable: false),
+                    IsAdmin = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -135,7 +139,7 @@ namespace BetBros.Server.Migrations
                     { 17, "Premier League", "West Ham" },
                     { 18, "Premier League", "Leeds United" },
                     { 19, "Premier League", "Burnley" },
-                    { 20, "Premier League", "Wolverhampton Wanderers" },
+                    { 20, "Premier League", "Wolverhampton" },
                     { 21, "Championship", "Coventry City" },
                     { 22, "Championship", "Middlesbrough" },
                     { 23, "Championship", "Millwall" },
@@ -229,7 +233,27 @@ namespace BetBros.Server.Migrations
                     { 111, "Superettan", "Utsikten" },
                     { 112, "Superettan", "Örebro" },
                     { 113, "Superettan", "Trelleborg" },
-                    { 114, "Superettan", "Umeå FC" }
+                    { 114, "Superettan", "Umeå FC" },
+                    { 115, "La Liga", "Barcelona" },
+                    { 116, "La Liga", "Real Madrid" },
+                    { 117, "La Liga", "Villarreal" },
+                    { 118, "La Liga", "Atlético Madrid" },
+                    { 119, "La Liga", "Real Betis" },
+                    { 120, "La Liga", "Espanyol" },
+                    { 121, "La Liga", "Getafe" },
+                    { 122, "La Liga", "Athletic Bilbao" },
+                    { 123, "La Liga", "Rayo Vallecano" },
+                    { 124, "La Liga", "Real Sociedad" },
+                    { 125, "La Liga", "Elche" },
+                    { 126, "La Liga", "Celta Vigo" },
+                    { 127, "La Liga", "Sevilla" },
+                    { 128, "La Liga", "Alavés" },
+                    { 129, "La Liga", "Valencia" },
+                    { 130, "La Liga", "Real Mallorca" },
+                    { 131, "La Liga", "Osasuna" },
+                    { 132, "La Liga", "Girona" },
+                    { 133, "La Liga", "Levante" },
+                    { 134, "La Liga", "Real Oviedo" }
                 });
 
             migrationBuilder.InsertData(
@@ -237,10 +261,10 @@ namespace BetBros.Server.Migrations
                 columns: new[] { "Id", "CreatedAt", "DisplayName", "IsAdmin", "PasswordHash", "RotationOrder", "Username" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(2025, 11, 24, 0, 0, 0, 0, DateTimeKind.Utc), "Gärdelöv", true, "$2a$11$XKVZvKJZ5Y5Y5Y5Y5Y5Y5uZGZGZGZGZGZGZGZGZGZGZGZGZGZGZGZ", 1, "gardelov" },
-                    { 2, new DateTime(2025, 11, 24, 0, 0, 0, 0, DateTimeKind.Utc), "Carlsson", false, "$2a$11$XKVZvKJZ5Y5Y5Y5Y5Y5Y5uZGZGZGZGZGZGZGZGZGZGZGZGZGZGZGZ", 3, "carlsson" },
-                    { 3, new DateTime(2025, 11, 24, 0, 0, 0, 0, DateTimeKind.Utc), "Danielsson", false, "$2a$11$XKVZvKJZ5Y5Y5Y5Y5Y5Y5uZGZGZGZGZGZGZGZGZGZGZGZGZGZGZGZ", 0, "danielsson" },
-                    { 4, new DateTime(2025, 11, 24, 0, 0, 0, 0, DateTimeKind.Utc), "Seeger", false, "$2a$11$XKVZvKJZ5Y5Y5Y5Y5Y5Y5uZGZGZGZGZGZGZGZGZGZGZGZGZGZGZGZ", 2, "seeger" }
+                    { 1, new DateTime(2025, 11, 24, 0, 0, 0, 0, DateTimeKind.Utc), "Gärdelöv", true, "$2a$11$13y8bUOBLMLcqEXgkB/pPusghKhPV29R3wp1FwvdWgq.Jn5LEh3HO", 1, "gardelov" },
+                    { 2, new DateTime(2025, 11, 24, 0, 0, 0, 0, DateTimeKind.Utc), "Carlsson", false, "$2a$11$V26L1B.sfS3m0zGg.phsaORWlaSL5kf28.siT2WPY1a0grcU7aM9u", 2, "carlsson" },
+                    { 3, new DateTime(2025, 11, 24, 0, 0, 0, 0, DateTimeKind.Utc), "Danielsson", false, "$2a$11$JTQ4wP5h1z8qSBqcuPdb.e10i6mgCgNMftf3WDCZjOaEXk0CfvByK", 0, "danielsson" },
+                    { 4, new DateTime(2025, 11, 24, 0, 0, 0, 0, DateTimeKind.Utc), "Seeger", false, "$2a$11$gHrkkjS8QZ4RAyYlj4w6DOqfWQETdWS1lDqIn2xvSiQpzQNglQuu2", 3, "seeger" }
                 });
         }
 

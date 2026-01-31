@@ -15,13 +15,9 @@ builder.Services.AddRazorComponents()
 builder.Services.AddMudServices();
 
 // Add Database
-var dbPath = "betbros.db";
-// Check if running on Azure (HOME is set)
-if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME")))
-    dbPath = "/home/betbros.db";
-
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<BetBrosDbContext>(options =>
-    options.UseSqlite($"Data Source={dbPath}"));
+    options.UseSqlServer(connectionString));
 
 // Add authentication and authorization
 builder.Services.AddAuthentication("BetBros")
@@ -52,9 +48,6 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BetBrosDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    
-    logger.LogInformation("Database path: {DbPath}", dbPath);
-    logger.LogInformation("Database exists: {Exists}", File.Exists(dbPath));
     
     var pending = db.Database.GetPendingMigrations().ToList();
     logger.LogInformation("Pending migrations: {Count} - {Migrations}", 
