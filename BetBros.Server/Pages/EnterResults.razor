@@ -112,7 +112,7 @@ else
             }
         </MudStack>
 
-        @if (_games.Count == 3)
+        @if (_games.Any())
         {
             <MudPaper Class="pa-4 mt-4">
                 <MudText Typo="Typo.h6" Class="mb-3">Total Vinst/Förlust för Veckan</MudText>
@@ -286,7 +286,7 @@ else
         }
 
         // Validate net profit: must be positive or negative (not zero or null)
-        if (_games.Count == 3)
+        if (_games.Any())
         {
             if (!_weekNetProfit.HasValue || _weekNetProfit.Value == 0)
                 return false;
@@ -305,7 +305,7 @@ else
         if (!CanSubmitAllResults() || _currentUser == null)
         {
             // Check specifically for net profit validation
-            if (_games.Count == 3 && (!_weekNetProfit.HasValue || _weekNetProfit.Value == 0))
+            if (_games.Any() && (!_weekNetProfit.HasValue || _weekNetProfit.Value == 0))
             {
                 Snackbar.Add("Vinst/förlust måste anges och måste vara antingen positivt (vinst) eller negativt (förlust), inte noll.", Severity.Warning);
             }
@@ -448,8 +448,8 @@ else
 
     private string ValidateNetProfitAgainstResults()
     {
-        // Only validate if we have all 3 games with scores and a net profit value
-        if (_games.Count != 3 || !_weekNetProfit.HasValue || _weekNetProfit.Value == 0)
+        // Only validate if we have games with scores and a net profit value
+        if (!_games.Any() || !_weekNetProfit.HasValue || _weekNetProfit.Value == 0)
             return string.Empty;
 
         // Check if all games have scores entered
@@ -464,7 +464,7 @@ else
             return string.Empty;
 
         var bets = BetService.GetUserBetsForWeek(_currentUser.Id, _currentWeek.Id);
-        if (bets.Count != 3)
+        if (bets.Count != _games.Count)
             return string.Empty; // Can't validate if bets don't exist yet
 
         // Count wins and losses based on temp scores
@@ -500,16 +500,16 @@ else
                 losses++;
         }
 
-        // Validate: if all 3 games are lost, amount must be negative
-        if (losses == 3 && _weekNetProfit.Value > 0)
+        // Validate: if all games are lost, amount must be negative
+        if (losses == _games.Count && _weekNetProfit.Value > 0)
         {
-            return "Om alla 3 matcher förlorades, kan vinst/förlust inte vara positivt. Det måste vara negativt (förlust).";
+            return "Om alla matcher förlorades, kan vinst/förlust inte vara positivt. Det måste vara negativt (förlust).";
         }
 
-        // Validate: if all 3 games are won, amount should be positive
-        if (wins == 3 && _weekNetProfit.Value < 0)
+        // Validate: if all games are won, amount should be positive
+        if (wins == _games.Count && _weekNetProfit.Value < 0)
         {
-            return "Om alla 3 matcher vanns, kan vinst/förlust inte vara negativt. Det bör vara positivt (vinst).";
+            return "Om alla matcher vanns, kan vinst/förlust inte vara negativt. Det bör vara positivt (vinst).";
         }
 
         return string.Empty;

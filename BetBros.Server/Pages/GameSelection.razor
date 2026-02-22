@@ -44,12 +44,12 @@ else
         }
     </MudText>
 
-    @* Game Selection Phase - Show if < 3 games or editing a game *@
-    @if (_existingGames.Count < 3 || _editingGameId.HasValue)
+    @* Game Selection Phase - Show if not done selecting or editing a game *@
+    @if ((!_selectionDone && _existingGames.Count < MaxGamesPerWeek) || _editingGameId.HasValue)
     {
         <MudText Typo="Typo.body1" Class="mb-4">
-            <strong>Steg 1:</strong> Välj 3 matcher
-            (@_existingGames.Count / 3 valda)
+            <strong>Steg 1:</strong> Välj 1-3 matcher
+            (@_existingGames.Count av max @MaxGamesPerWeek valda)
         </MudText>
 
         <MudPaper Class="pa-4 mb-4">
@@ -144,7 +144,7 @@ else
                         {
                             <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
                         }
-                        @(_editingGameId.HasValue ? "Spara Ändringar" : $"Lägg till Match ({_existingGames.Count + 1}/3)")
+                        @(_editingGameId.HasValue ? "Spara Ändringar" : $"Lägg till Match ({_existingGames.Count + 1}/{MaxGamesPerWeek})")
                     </MudButton>
 
                     @if (_editingGameId.HasValue)
@@ -209,9 +209,21 @@ else
                 }
             </MudStack>
         }
+
+        @if (_existingGames.Count >= 1 && _existingGames.Count < MaxGamesPerWeek && !_editingGameId.HasValue)
+        {
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Success"
+                       OnClick="@(() => { _selectionDone = true; StateHasChanged(); })"
+                       Class="mt-4"
+                       Size="Size.Large"
+                       FullWidth="true">
+                Klar med matchval (@_existingGames.Count @(_existingGames.Count == 1 ? "match vald" : "matcher valda"))
+            </MudButton>
+        }
     }
-    @* Betting Phase - Show when 3 games are selected *@
-    else if (_existingGames.Count >= 3 && !_editingGameId.HasValue)
+    @* Betting Phase - Show when games are selected and selection is done *@
+    else if ((_selectionDone || _existingGames.Count >= MaxGamesPerWeek) && _existingGames.Any() && !_editingGameId.HasValue)
     {
         <MudAlert Severity="Severity.Success" Class="mb-4">
             Alla matcher valda! Nu kan du lägga dina spel.
@@ -220,6 +232,17 @@ else
         <MudText Typo="Typo.body1" Class="mb-4">
             <strong>Steg 2:</strong> Lägg dina spel på varje match
         </MudText>
+
+        @if (_existingGames.Count < MaxGamesPerWeek)
+        {
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Info"
+                       OnClick="@(() => { _selectionDone = false; StateHasChanged(); })"
+                       Class="mb-4"
+                       Size="Size.Small">
+                Lägg till fler matcher (@_existingGames.Count/@MaxGamesPerWeek)
+            </MudButton>
+        }
 
         <MudStack Spacing="4" Class="mb-8">
             @foreach (var game in _existingGames)
@@ -436,7 +459,7 @@ else
             }
         </MudStack>
 
-        @if (_existingGames.Count >= 3)
+        @if (_existingGames.Any())
         {
             <div class="mb-16 pb-8">
                 <MudButton Variant="Variant.Filled"
@@ -465,6 +488,8 @@ else
     private List<Game> _existingGames = [];
     private List<Bet> _existingBets = [];
     private bool _isSaving;
+    private bool _selectionDone;
+    private const int MaxGamesPerWeek = 3;
     private string _errorMessage = string.Empty;
     private int? _editingGameId;
     private int _formKey = 0;
@@ -528,6 +553,7 @@ else
 
             _existingGames = GameService.GetGamesForWeek(_currentWeek.Id);
             _existingBets = BetService.GetUserBetsForWeek(_currentUser.Id, _currentWeek.Id);
+            _selectionDone = _existingBets.Any() || _existingGames.Count >= MaxGamesPerWeek;
             _allTeamNames = DataStore.GetTeams().Select(t => t.Name).OrderBy(n => n).ToList();
 
             // Initialize temp storage for all games

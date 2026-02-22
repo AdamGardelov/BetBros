@@ -105,6 +105,7 @@ else
                                     <MudTh>Nettoresultat</MudTh>
                                     <MudTh>ROI %</MudTh>
                                     <MudTh>Veckor</MudTh>
+                                    <MudTh>Snitt matcher/vecka</MudTh>
                                 </HeaderContent>
                                 <RowTemplate>
                                     <MudTd DataLabel="Spelare">
@@ -135,6 +136,9 @@ else
                                     </MudTd>
                                     <MudTd DataLabel="Veckor">
                                         <MudText Typo="Typo.body2">@context.WeeksParticipated</MudText>
+                                    </MudTd>
+                                    <MudTd DataLabel="Snitt matcher/vecka">
+                                        <MudText Typo="Typo.body2">@context.AvgGamesPerWeek.ToString("F1")</MudText>
                                     </MudTd>
                                 </RowTemplate>
                             </MudTable>
@@ -187,6 +191,10 @@ else
                                                 <MudText Typo="Typo.caption">Veckor</MudText>
                                                 <MudText Typo="Typo.body2">@item.WeeksParticipated</MudText>
                                             </MudItem>
+                                            <MudItem xs="4">
+                                                <MudText Typo="Typo.caption">Matcher/v</MudText>
+                                                <MudText Typo="Typo.body2">@item.AvgGamesPerWeek.ToString("F1")</MudText>
+                                            </MudItem>
                                         </MudGrid>
                                     </MudPaper>
                                 }
@@ -218,6 +226,7 @@ else
         public decimal NetProfit { get; set; }
         public decimal RoiPercent { get; set; }
         public int WeeksParticipated { get; set; }
+        public decimal AvgGamesPerWeek { get; set; }
     }
 
     protected override void OnInitialized()
@@ -246,7 +255,8 @@ else
                     TotalLost = stat.Value.TotalLost,
                     NetProfit = stat.Value.NetProfit,
                     RoiPercent = stat.Value.RoiPercent,
-                    WeeksParticipated = stat.Value.WeeksParticipated
+                    WeeksParticipated = stat.Value.WeeksParticipated,
+                    AvgGamesPerWeek = stat.Value.AvgGamesPerWeek
                 });
             }
         }

@@ -8,4 +8,6 @@ public class FinancialStats
     public decimal NetProfit { get; set; }     // Won - Bet
     public decimal RoiPercent { get; set; }   // ROI percentage
     public int WeeksParticipated { get; set; } // Number of weeks they placed bets
+    public int TotalGamesPlayed { get; set; }  // Total number of games across all weeks
+    public decimal AvgGamesPerWeek => WeeksParticipated > 0 ? (decimal)TotalGamesPlayed / WeeksParticipated : 0;
 }

@@ -7,7 +7,7 @@ namespace BetBros.Server.Services;
 
 public class BetService(IDataStore dataStore) : IBetService
 {
-    private const decimal StakePerBet = 200m / 3m; // 66.67kr per bet
+    private const decimal WeeklyStake = 200m;
 
     public Bet PlaceBet(int userId, int gameId, BetType prediction, int? predictedHomeScore = null, int? predictedAwayScore = null)
     {
@@ -42,11 +42,14 @@ public class BetService(IDataStore dataStore) : IBetService
             throw new ArgumentException("Exact score predictions require both home and away scores", nameof(prediction));
 
         // Check if a bet already exists - update it instead of creating new
+        var weekGameCount = dataStore.GetGamesByWeek(game.GameWeekId).Count;
+        var stakePerBet = weekGameCount > 0 ? WeeklyStake / weekGameCount : WeeklyStake;
+
         var existingBet = dataStore.GetBetByUserAndGame(userId, gameId);
         if (existingBet != null)
         {
             existingBet.Prediction = prediction;
-            existingBet.Stake = StakePerBet;
+            existingBet.Stake = stakePerBet;
             existingBet.PredictedHomeScore = predictedHomeScore;
             existingBet.PredictedAwayScore = predictedAwayScore;
             existingBet.PlacedAt = DateTime.UtcNow;
@@ -63,7 +66,7 @@ public class BetService(IDataStore dataStore) : IBetService
             GameId = gameId,
             UserId = userId,
             Prediction = prediction,
-            Stake = StakePerBet,
+            Stake = stakePerBet,
             PredictedHomeScore = predictedHomeScore,
             PredictedAwayScore = predictedAwayScore,
             Status = BetStatus.Pending,
@@ -209,11 +212,11 @@ public class BetService(IDataStore dataStore) : IBetService
         var users = dataStore.GetUsers();
         var stats = new Dictionary<int, FinancialStats>();
 
-        // Get all completed weeks (where all 3 games are completed and net profit is set)
+        // Get all completed weeks (where all games are completed and net profit is set)
         var completedWeeks = gameWeeks.Where(gw =>
         {
-            var weekGames = games.Where(g => g.GameWeekId == gw.Id && g.Status == GameStatus.Completed && g.HomeScore.HasValue).ToList();
-            return weekGames.Count == 3 && gw.NetProfit.HasValue;
+            var weekGames = games.Where(g => g.GameWeekId == gw.Id).ToList();
+            return weekGames.Count > 0 && weekGames.All(g => g.Status == GameStatus.Completed && g.HomeScore.HasValue) && gw.NetProfit.HasValue;
         }).ToList();
 
         // Calculate stats per user based on weeks where they were the selector
@@ -224,7 +227,8 @@ public class BetService(IDataStore dataStore) : IBetService
 
             // Calculate financial stats
             // TotalBet: 200kr per week where user was selector
-            var totalBet = userWeeks.Count * 200m; // 200kr per week
+            var totalGamesPlayed = userWeeks.Sum(w => games.Count(g => g.GameWeekId == w.Id));
+            var totalBet = userWeeks.Count * WeeklyStake;
             
             // NetProfit is the profit/loss amount entered by user
             // TotalWon: Only count positive weeks (just the profit amount, not bet + profit)
@@ -256,7 +260,8 @@ public class BetService(IDataStore dataStore) : IBetService
                 TotalLost = totalLost,
                 NetProfit = netProfit,
                 RoiPercent = roi,
-                WeeksParticipated = userWeeks.Count
+                WeeksParticipated = userWeeks.Count,
+                TotalGamesPlayed = totalGamesPlayed
             };
         }
 
@@ -273,15 +278,15 @@ public class BetService(IDataStore dataStore) : IBetService
 
         var gameWeeks = dataStore.GetGameWeeks();
         var games = dataStore.GetGames();
-        // Count weeks where all 3 games are completed
+        // Count weeks where all games are completed
         var completedWeeks = gameWeeks.Where(gw =>
         {
             var weekGames = games.Where(g => g.GameWeekId == gw.Id).ToList();
-            return weekGames.Count == 3 && weekGames.All(g => g.Status == GameStatus.Completed && g.HomeScore.HasValue);
+            return weekGames.Count > 0 && weekGames.All(g => g.Status == GameStatus.Completed && g.HomeScore.HasValue);
         }).Count();
 
         // TotalBet should be 200kr per completed week (not summing per-user bets)
-        var totalBet = completedWeeks * 200m;
+        var totalBet = completedWeeks * WeeklyStake;
         var roi = totalBet > 0 ? netProfit / totalBet * 100 : 0;
 
         return new FinancialSummary
