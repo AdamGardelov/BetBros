@@ -126,33 +126,26 @@ else
                                 </MudItem>
                                 <MudItem xs="12" sm="3">
                                     @{
-                                        var orderedBetsForEmojis = group.Bets.OrderBy(b => b.Game.CreatedAt).Take(3).ToList();
+                                        var orderedBetsForEmojis = group.Bets.OrderBy(b => b.Game.CreatedAt).ToList();
                                     }
-                                    @for (int i = 0; i < 3; i++)
+                                    @for (int i = 0; i < orderedBetsForEmojis.Count; i++)
                                     {
                                         @if (i > 0)
                                         {
                                             <text> </text>
                                         }
-                                        @if (i < orderedBetsForEmojis.Count)
+                                        var bet = orderedBetsForEmojis[i];
+                                        @if (!bet.Bet.ScoredAt.HasValue)
                                         {
-                                            var bet = orderedBetsForEmojis[i];
-                                            @if (!bet.Bet.ScoredAt.HasValue)
-                                            {
-                                                <text>○</text>
-                                            }
-                                            else if (bet.Bet.Status == BetStatus.Won || bet.Bet.Status == BetStatus.Refunded)
-                                            {
-                                                <MudText Typo="Typo.body1" Color="Color.Success" Style="display: inline;">✓</MudText>
-                                            }
-                                            else
-                                            {
-                                                <MudText Typo="Typo.body1" Color="Color.Error" Style="display: inline;">✗</MudText>
-                                            }
+                                            <text>○</text>
+                                        }
+                                        else if (bet.Bet.Status == BetStatus.Won || bet.Bet.Status == BetStatus.Refunded)
+                                        {
+                                            <MudText Typo="Typo.body1" Color="Color.Success" Style="display: inline;">✓</MudText>
                                         }
                                         else
                                         {
-                                            <text>-</text>
+                                            <MudText Typo="Typo.body1" Color="Color.Error" Style="display: inline;">✗</MudText>
                                         }
                                     }
                                 </MudItem>
@@ -359,7 +352,7 @@ else
         }
 
         // For other users or if NetProfit is not set, calculate based on individual bet outcomes
-        const decimal stakePerBet = 200m / 3m; // 66.67kr per bet
+        var stakePerBet = bets.Count > 0 ? 200m / bets.Count : 200m / 3m;
         decimal totalProfit = 0;
 
         foreach (var betResult in bets)

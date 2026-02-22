@@ -617,7 +617,7 @@ else
         @if (_existingGames.Any())
         {
             <MudPaper Class="pa-4 mb-4">
-                <MudText Typo="Typo.h6" Class="mb-4">Matcher för denna vecka (@_existingGames.Count / 3)</MudText>
+                <MudText Typo="Typo.h6" Class="mb-4">Matcher för denna vecka (@_existingGames.Count)</MudText>
                 <MudStack Spacing="2">
                     @foreach (var game in _existingGames)
                     {
