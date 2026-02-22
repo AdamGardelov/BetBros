@@ -350,6 +350,12 @@ else
                 }
             }
 
+            // Always re-score all completed games in the week (catches late-placed bets)
+            foreach (var game in _games.Where(g => g.Status == GameStatus.Completed && g.HomeScore.HasValue))
+            {
+                BetService.ScoreGameBets(game.Id);
+            }
+
             // Update week's net profit
             if (_currentWeek != null)
             {
