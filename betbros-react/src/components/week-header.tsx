@@ -9,7 +9,7 @@ interface WeekHeaderProps {
 
 export function WeekHeader({ week, selector }: WeekHeaderProps) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <h2 className="text-lg font-semibold">
         {week.is_catchup ? 'Ikappvecka' : `Vecka ${week.week_number}`}
       </h2>

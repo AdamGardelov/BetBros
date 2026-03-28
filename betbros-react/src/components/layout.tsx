@@ -18,12 +18,13 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-lg">
+      {/* Desktop header */}
+      <header className="sticky top-0 z-50 hidden border-b border-border/40 bg-background/80 backdrop-blur-lg md:block">
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
           <Link to="/" className="text-xl font-bold tracking-tight text-primary">
             BetBros
           </Link>
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="flex items-center gap-1">
             {navItems.map(({ to, label }) => (
               <Link key={to} to={to}
                 className={cn(
@@ -51,23 +52,47 @@ export function Layout() {
           </div>
         </div>
       </header>
+
+      {/* Mobile header */}
+      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-lg md:hidden">
+        <div className="flex items-center justify-between px-4 py-3">
+          <Link to="/" className="text-lg font-bold tracking-tight text-primary">BetBros</Link>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{user?.display_name}</span>
+            <Button variant="ghost" size="sm" onClick={signOut} className="h-7 px-2 text-xs text-muted-foreground">
+              Logga ut
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-4 pb-20 md:py-6 md:pb-6">
+        <Outlet />
+      </main>
+
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/40 bg-background/95 backdrop-blur-lg md:hidden">
-        <div className="flex items-center justify-around py-2">
-          {navItems.slice(0, 5).map(({ to, label }) => (
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border/40 bg-background/95 backdrop-blur-lg md:hidden">
+        <div className="flex items-stretch justify-around">
+          {navItems.map(({ to, label }) => (
             <Link key={to} to={to}
               className={cn(
-                'flex flex-col items-center px-2 py-1 text-xs font-medium transition-colors',
+                'flex flex-1 flex-col items-center justify-center py-2.5 text-[10px] font-medium transition-colors',
                 location.pathname === to ? 'text-primary' : 'text-muted-foreground'
               )}>
               {label}
             </Link>
           ))}
+          {isAdmin && (
+            <Link to="/admin"
+              className={cn(
+                'flex flex-1 flex-col items-center justify-center py-2.5 text-[10px] font-medium transition-colors',
+                location.pathname === '/admin' ? 'text-primary' : 'text-muted-foreground'
+              )}>
+              Admin
+            </Link>
+          )}
         </div>
       </nav>
-      <main className="container mx-auto px-4 py-6 pb-20 md:pb-6">
-        <Outlet />
-      </main>
     </div>
   )
 }
