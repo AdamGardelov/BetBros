@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/use-auth'
 import { Button } from '../components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Alert } from '../components/ui/alert'
@@ -35,29 +34,31 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm border-border/50 bg-card/50 backdrop-blur">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold tracking-tight text-primary">BetBros</CardTitle>
-          <CardDescription>Logga in med ditt konto</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background noise-bg p-4">
+      <div className="relative z-10 w-full max-w-sm">
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold tracking-tight">
+            <span className="text-primary">Bet</span><span className="text-foreground">Bros</span>
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">Logga in med ditt konto</p>
+        </div>
+        <div className="rounded-2xl border border-border/40 bg-card/60 p-6 backdrop-blur-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <Alert variant="destructive"><p>{error}</p></Alert>}
+            {error && <Alert variant="destructive"><p className="text-sm">{error}</p></Alert>}
             <div className="space-y-2">
-              <Label htmlFor="email">E-post</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="namn@betbros.se" />
+              <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">E-post</Label>
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="namn@betbros.se" className="bg-background/50" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Lösenord</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lösenord</Label>
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-background/50" />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full font-semibold" disabled={loading}>
               {loading ? 'Loggar in...' : 'Logga in'}
             </Button>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }
