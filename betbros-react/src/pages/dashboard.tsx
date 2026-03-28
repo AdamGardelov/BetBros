@@ -68,19 +68,23 @@ export function DashboardPage() {
       {week && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Matcher</CardTitle>
+            <CardTitle>Veckans matcher</CardTitle>
             {isSelector && games.length === 0 && (
               <Link to="/valj-matcher"><Button size="sm">Välj matcher</Button></Link>
             )}
-            {games.length > 0 && (
-              <Link to="/valj-matcher"><Button size="sm" variant="outline">Lägg spel</Button></Link>
+            {isSelector && games.length > 0 && (
+              <Link to="/valj-matcher"><Button size="sm" variant="outline">Hantera spel</Button></Link>
             )}
           </CardHeader>
           <CardContent className="space-y-3">
-            {games.length === 0 && <p className="text-sm text-muted-foreground">Inga matcher valda ännu.</p>}
+            {games.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                {isSelector ? 'Du har inte valt matcher ännu.' : `${selector?.display_name ?? 'Matchväljaren'} har inte valt matcher ännu.`}
+              </p>
+            )}
             {games.map((game) => {
-              const myBet = bets.find((b) => b.game_id === game.id && b.user_id === user?.id)
-              return <GameCard key={game.id} game={game} bet={myBet} />
+              const selectorBet = bets.find((b) => b.game_id === game.id && b.user_id === week?.game_selector_id)
+              return <GameCard key={game.id} game={game} bet={selectorBet} />
             })}
           </CardContent>
         </Card>

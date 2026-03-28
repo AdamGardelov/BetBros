@@ -113,14 +113,24 @@ export function GameSelectionPage() {
         </Card>
       )}
 
-      {games.map((game) => {
+      {!isSelector && games.length > 0 && (
+        <Card>
+          <CardContent className="py-8 text-center">
+            <p className="text-muted-foreground">
+              {users.find((u: any) => u.id === week.game_selector_id)?.display_name ?? 'Väljaren'} väljer matcher denna vecka.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {isSelector && games.map((game) => {
         const myBet = bets.find((b) => b.game_id === game.id && b.user_id === user?.id)
         return (
           <Card key={game.id}>
             <CardContent className="space-y-3 p-4">
               <div className="flex items-center justify-between">
                 <GameCard game={game} showScore={false} />
-                {isSelector && !bets.some((b) => b.game_id === game.id) && (
+                {!bets.some((b) => b.game_id === game.id) && (
                   <Button variant="ghost" size="sm" onClick={() => deleteGame.mutate({ gameId: game.id, weekId: week!.id })}>Ta bort</Button>
                 )}
               </div>

@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useGameWeeks } from '../hooks/use-game-weeks'
 import { WeekHeader } from '../components/week-header'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion'
 import { Badge } from '../components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { formatCurrency, betTypeLabel, betStatusLabel, gameKindLabel } from '../utils/format'
 import { supabase } from '../lib/supabase'
 import { BetStatus, GameStatus } from '../types'
@@ -17,7 +19,7 @@ export function HistoryPage() {
     queryFn: async () => {
       const { data, error } = await supabase.from('users').select('*')
       if (error) throw error
-      return data as User[]
+      return (data as User[]).sort((a, b) => a.rotation_order - b.rotation_order)
     },
   })
   const { data: allGames = [] } = useQuery({
@@ -37,6 +39,8 @@ export function HistoryPage() {
     },
   })
 
+  const [filterPlayer, setFilterPlayer] = useState<string>('all')
+
   if (isLoading) return <div className="flex items-center justify-center py-16 text-muted-foreground">Laddar...</div>
 
   const sortedWeeks = [...weeks].reverse()
@@ -48,18 +52,46 @@ export function HistoryPage() {
     return null
   }
 
+  // Filter weeks by player (selector)
+  const filteredWeeks = filterPlayer === 'all'
+    ? sortedWeeks
+    : sortedWeeks.filter((w) => w.game_selector_id === filterPlayer)
+
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight">Historik</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Historik</h1>
+        <Select value={filterPlayer} onValueChange={setFilterPlayer}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Alla spelare" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alla spelare</SelectItem>
+            {users.map((u) => (
+              <SelectItem key={u.id} value={u.id}>{u.display_name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <Accordion type="single" collapsible>
-        {sortedWeeks.map((week) => {
+        {filteredWeeks.map((week) => {
           const weekGames = allGames.filter((g) => g.game_week_id === week.id)
           const selector = users.find((u) => u.id === week.game_selector_id)
+          const weekBets = allBets.filter((b) => weekGames.some((g) => g.id === b.game_id) && b.user_id === week.game_selector_id)
+          const wins = weekBets.filter((b) => b.status === BetStatus.Won || b.status === BetStatus.Refunded).length
+          const losses = weekBets.filter((b) => b.status === BetStatus.Lost).length
+
           return (
             <AccordionItem key={week.id} value={week.id} className="border-border/50">
               <AccordionTrigger className="text-left hover:no-underline">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <WeekHeader week={week} selector={selector} />
+                  {weekBets.length > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {wins}W {losses}L
+                    </span>
+                  )}
                   {week.net_profit != null && (
                     <span className={cn('font-bold tabular-nums', week.net_profit >= 0 ? 'text-emerald-400' : 'text-red-400')}>
                       {formatCurrency(week.net_profit)}
@@ -68,65 +100,57 @@ export function HistoryPage() {
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="space-y-4 pt-2">
-                  {weekGames.map((game) => {
-                    const isCompleted = game.status === GameStatus.Completed
-                    const line = lineLabel(game)
-                    return (
-                      <div key={game.id} className="rounded-lg border border-border/50 bg-card/50 p-4">
-                        {/* Game header */}
-                        <div className="flex items-center justify-between border-b border-border/30 pb-3 mb-3">
-                          <div className="flex items-center gap-3">
-                            <span className="font-semibold">{game.home_team}</span>
-                            <span className="text-muted-foreground">vs</span>
-                            <span className="font-semibold">{game.away_team}</span>
-                            {isCompleted && (
-                              <span className="rounded bg-accent px-2 py-0.5 text-sm font-bold tabular-nums">
-                                {game.home_score} - {game.away_score}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>{gameKindLabel(game.bet_kind)}</span>
-                            {line && <span className="rounded bg-accent px-1.5 py-0.5">{line}</span>}
-                          </div>
-                        </div>
+                <div className="space-y-3 pt-2">
+                  {week.is_cancelled ? (
+                    <p className="py-4 text-center text-sm text-muted-foreground">Inställd vecka</p>
+                  ) : weekGames.length === 0 ? (
+                    <p className="py-4 text-center text-sm text-muted-foreground">Inga matcher</p>
+                  ) : (
+                    weekGames.map((game) => {
+                      const isCompleted = game.status === GameStatus.Completed
+                      const line = lineLabel(game)
+                      const bet = allBets.find((b) => b.game_id === game.id && b.user_id === week.game_selector_id)
 
-                        {/* Player bets - compact rows */}
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          {users.map((u) => {
-                            const bet = allBets.find((b) => b.game_id === game.id && b.user_id === u.id)
-                            return (
-                              <div key={u.id} className="flex items-center justify-between rounded-md bg-accent/30 px-3 py-2">
-                                <span className="text-sm font-medium">{u.display_name}</span>
-                                {bet ? (
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm text-muted-foreground">
-                                      {bet.prediction === 'exact_score' && bet.predicted_home_score != null
-                                        ? `${bet.predicted_home_score}-${bet.predicted_away_score}`
-                                        : betTypeLabel(bet.prediction)}
-                                    </span>
+                      return (
+                        <div key={game.id} className="rounded-lg border border-border/50 bg-card/50 p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <span className="font-semibold">{game.home_team}</span>
+                              <span className="text-xs text-muted-foreground">vs</span>
+                              <span className="font-semibold">{game.away_team}</span>
+                              {isCompleted && (
+                                <span className="rounded bg-accent px-2 py-0.5 text-sm font-bold tabular-nums">
+                                  {game.home_score} - {game.away_score}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {bet && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-muted-foreground">
+                                    {bet.prediction === 'exact_score' && bet.predicted_home_score != null
+                                      ? `${bet.predicted_home_score}-${bet.predicted_away_score}`
+                                      : betTypeLabel(bet.prediction)}
+                                  </span>
+                                  {bet.status !== BetStatus.Pending && (
                                     <Badge
                                       variant={bet.status === BetStatus.Won ? 'default' : bet.status === BetStatus.Refunded ? 'secondary' : 'destructive'}
                                       className={cn('text-xs', bet.status === BetStatus.Won && 'bg-emerald-600')}
                                     >
                                       {betStatusLabel(bet.status)}
                                     </Badge>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">—</span>
-                                )}
+                                  )}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <span>{gameKindLabel(game.bet_kind)}</span>
+                                {line && <span className="rounded bg-accent px-1.5 py-0.5">{line}</span>}
                               </div>
-                            )
-                          })}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })}
-                  {weekGames.length === 0 && (
-                    <p className="py-4 text-center text-sm text-muted-foreground">
-                      {week.is_cancelled ? 'Inställd vecka' : 'Inga matcher'}
-                    </p>
+                      )
+                    })
                   )}
                 </div>
               </AccordionContent>
