@@ -46,6 +46,15 @@ export function EnterResultsPage() {
     await updateNetProfit.mutateAsync({ weekId: week.id, netProfit: parseFloat(netProfit) })
   }
 
+  if (!week) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <h2 className="text-xl font-semibold text-muted-foreground">Ingen aktiv vecka</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Ingen vecka att mata in resultat för.</p>
+      </div>
+    )
+  }
+
   if (!isSelector) {
     return <p className="text-muted-foreground">Bara veckans väljare kan mata in resultat.</p>
   }

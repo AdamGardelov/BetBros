@@ -58,6 +58,19 @@ export function GameSelectionPage() {
 
   const needsLine = betKind === BetType.OverOrUnder || betKind === BetType.HomeWinAH || betKind === BetType.HomeWinH3W
 
+  if (!week) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <h2 className="text-xl font-semibold text-muted-foreground">Ingen aktiv vecka</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Veckans matcher har inte skapats ännu. Be admin att skapa en ny vecka.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {week && <WeekHeader week={week} selector={undefined} />}

@@ -1,4 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Card, CardContent } from './ui/card'
+import { cn } from '../lib/utils'
 
 interface StatsCardProps {
   title: string
@@ -9,11 +10,9 @@ interface StatsCardProps {
 export function StatsCard({ title, value, className }: StatsCardProps) {
   return (
     <Card className={className}>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-2xl font-bold">{value}</p>
+      <CardContent className="p-4">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
+        <p className="mt-1 text-2xl font-bold">{value}</p>
       </CardContent>
     </Card>
   )
