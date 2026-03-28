@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useGameWeeks } from '../hooks/use-game-weeks'
-import { WeekHeader } from '../components/week-header'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion'
 import { Badge } from '../components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
@@ -41,7 +40,7 @@ export function HistoryPage() {
 
   const [filterPlayer, setFilterPlayer] = useState<string>('all')
 
-  if (isLoading) return <div className="flex items-center justify-center py-16 text-muted-foreground">Laddar...</div>
+  if (isLoading) return <div className="flex items-center justify-center py-20 text-muted-foreground">Laddar...</div>
 
   const sortedWeeks = [...weeks].reverse()
 
@@ -58,11 +57,11 @@ export function HistoryPage() {
     : sortedWeeks.filter((w) => w.game_selector_id === filterPlayer)
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Historik</h1>
         <Select value={filterPlayer} onValueChange={setFilterPlayer}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-44 border-border/50 bg-card">
             <SelectValue placeholder="Alla spelare" />
           </SelectTrigger>
           <SelectContent>
@@ -74,33 +73,48 @@ export function HistoryPage() {
         </Select>
       </div>
 
-      <Accordion type="single" collapsible>
+      {filteredWeeks.length === 0 && (
+        <div className="rounded-xl border border-dashed border-border/60 py-12 text-center">
+          <p className="text-sm text-muted-foreground">Ingen historik att visa</p>
+        </div>
+      )}
+
+      <Accordion type="single" collapsible className="space-y-2">
         {filteredWeeks.map((week) => {
           const weekGames = allGames.filter((g) => g.game_week_id === week.id)
           const selector = users.find((u) => u.id === week.game_selector_id)
           const weekBets = allBets.filter((b) => weekGames.some((g) => g.id === b.game_id) && b.user_id === week.game_selector_id)
           const wins = weekBets.filter((b) => b.status === BetStatus.Won || b.status === BetStatus.Refunded).length
           const losses = weekBets.filter((b) => b.status === BetStatus.Lost).length
+          const profit = week.net_profit ?? 0
 
           return (
-            <AccordionItem key={week.id} value={week.id} className="border-border/50">
-              <AccordionTrigger className="text-left hover:no-underline">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <WeekHeader week={week} selector={selector} />
+            <AccordionItem key={week.id} value={week.id} className="rounded-lg border border-border/50 bg-card/50 px-4">
+              <AccordionTrigger className="py-3 text-left hover:no-underline [&[data-state=open]]:pb-2">
+                <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 pr-2">
+                  <span className="font-bold">V{week.week_number}</span>
+                  {selector && (
+                    <span className="text-sm text-muted-foreground">{selector.display_name}</span>
+                  )}
                   {weekBets.length > 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      {wins}W {losses}L
+                    <span className="font-data text-xs text-muted-foreground">
+                      <span className="text-emerald-400">{wins}W</span>
+                      {' '}
+                      <span className="text-rose-400">{losses}L</span>
                     </span>
                   )}
                   {week.net_profit != null && (
-                    <span className={cn('font-bold tabular-nums', week.net_profit >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                      {formatCurrency(week.net_profit)}
+                    <span className={cn(
+                      'ml-auto font-data text-sm font-bold',
+                      profit >= 0 ? 'text-emerald-400' : 'text-rose-400',
+                    )}>
+                      {formatCurrency(profit)}
                     </span>
                   )}
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="space-y-3 pt-2">
+                <div className="space-y-2 pb-1">
                   {week.is_cancelled ? (
                     <p className="py-4 text-center text-sm text-muted-foreground">Inställd vecka</p>
                   ) : weekGames.length === 0 ? (
@@ -112,41 +126,44 @@ export function HistoryPage() {
                       const bet = allBets.find((b) => b.game_id === game.id && b.user_id === week.game_selector_id)
 
                       return (
-                        <div key={game.id} className="rounded-lg border border-border/50 bg-card/50 p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <span className="font-semibold">{game.home_team}</span>
+                        <div key={game.id} className="rounded-lg border border-border/30 bg-background/50 px-3 py-2.5">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            {/* Teams and score */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold">{game.home_team}</span>
                               <span className="text-xs text-muted-foreground">vs</span>
-                              <span className="font-semibold">{game.away_team}</span>
+                              <span className="text-sm font-semibold">{game.away_team}</span>
                               {isCompleted && (
-                                <span className="rounded bg-accent px-2 py-0.5 text-sm font-bold tabular-nums">
-                                  {game.home_score} - {game.away_score}
+                                <span className="font-data rounded bg-accent px-1.5 py-0.5 text-xs font-bold">
+                                  {game.home_score}–{game.away_score}
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2">
-                              {bet && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm text-muted-foreground">
-                                    {bet.prediction === 'exact_score' && bet.predicted_home_score != null
-                                      ? `${bet.predicted_home_score}-${bet.predicted_away_score}`
-                                      : betTypeLabel(bet.prediction)}
-                                  </span>
-                                  {bet.status !== BetStatus.Pending && (
-                                    <Badge
-                                      variant={bet.status === BetStatus.Won ? 'default' : bet.status === BetStatus.Refunded ? 'secondary' : 'destructive'}
-                                      className={cn('text-xs', bet.status === BetStatus.Won && 'bg-emerald-600')}
-                                    >
-                                      {betStatusLabel(bet.status)}
-                                    </Badge>
-                                  )}
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                <span>{gameKindLabel(game.bet_kind)}</span>
-                                {line && <span className="rounded bg-accent px-1.5 py-0.5">{line}</span>}
-                              </div>
+
+                            {/* Bet kind and line */}
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                              <span>{gameKindLabel(game.bet_kind)}</span>
+                              {line && <span className="rounded bg-accent px-1.5 py-0.5">{line}</span>}
                             </div>
+
+                            {/* Selector's bet + result pushed to the right */}
+                            {bet && (
+                              <div className="ml-auto flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">
+                                  {bet.prediction === 'exact_score' && bet.predicted_home_score != null
+                                    ? `${bet.predicted_home_score}–${bet.predicted_away_score}`
+                                    : betTypeLabel(bet.prediction)}
+                                </span>
+                                {bet.status !== BetStatus.Pending && (
+                                  <Badge
+                                    variant={bet.status === BetStatus.Won ? 'default' : bet.status === BetStatus.Refunded ? 'secondary' : 'destructive'}
+                                    className={cn('text-[10px] px-1.5 py-0', bet.status === BetStatus.Won && 'bg-emerald-600')}
+                                  >
+                                    {betStatusLabel(bet.status)}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       )

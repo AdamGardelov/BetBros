@@ -1,64 +1,88 @@
 import { useFinancialStats, useFinancialSummary } from '../hooks/use-stats'
 import { StatsCard } from '../components/stats-card'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
+import { Card, CardContent } from '../components/ui/card'
 import { formatCurrency, formatPercent } from '../utils/format'
 import { cn } from '../lib/utils'
 
 export function StatisticsPage() {
   const { data: financialData, isLoading: statsLoading } = useFinancialStats()
   const { data: summary, isLoading: summaryLoading } = useFinancialSummary()
-  if (statsLoading || summaryLoading) return <div>Laddar...</div>
+  if (statsLoading || summaryLoading) return <div className="flex items-center justify-center py-20 text-muted-foreground">Laddar...</div>
 
   return (
     <div className="space-y-6">
+      <h1 className="text-2xl font-bold tracking-tight">Statistik</h1>
+
+      {/* Summary grid */}
       {summary && (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <StatsCard title="Totalt insatsat" value={formatCurrency(summary.total_bet)} />
-          <StatsCard title="Totalt vunnet" value={formatCurrency(summary.total_won)} />
-          <StatsCard title="Totalt förlorat" value={formatCurrency(summary.total_lost)} />
-          <StatsCard title="Nettoresultat" value={formatCurrency(summary.net_profit)} className={cn(summary.net_profit >= 0 ? 'border-green-200' : 'border-red-200')} />
-          <StatsCard title="Total balans" value={formatCurrency(summary.total_balance)} />
-          <StatsCard title="ROI" value={formatPercent(summary.roi_percent)} />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatsCard title="Insatsat" value={formatCurrency(summary.total_bet)} />
+          <StatsCard title="Vunnet" value={formatCurrency(summary.total_won)} variant="positive" />
+          <StatsCard title="Förlorat" value={formatCurrency(summary.total_lost)} variant="negative" />
+          <StatsCard
+            title="Nettoresultat"
+            value={formatCurrency(summary.net_profit)}
+            variant={summary.net_profit >= 0 ? 'positive' : 'negative'}
+          />
+          <StatsCard title="Balans" value={formatCurrency(summary.total_balance)} />
+          <StatsCard
+            title="ROI"
+            value={formatPercent(summary.roi_percent)}
+            variant={summary.roi_percent >= 0 ? 'positive' : 'negative'}
+          />
           <StatsCard title="Veckor" value={summary.total_weeks.toString()} />
         </div>
       )}
+
+      {/* Per player cards - mobile friendly */}
       {financialData && (
-        <Card>
-          <CardHeader><CardTitle>Per spelare</CardTitle></CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Spelare</TableHead>
-                  <TableHead className="text-right">Insatsat</TableHead>
-                  <TableHead className="text-right">Vunnet</TableHead>
-                  <TableHead className="text-right">Förlorat</TableHead>
-                  <TableHead className="text-right">Netto</TableHead>
-                  <TableHead className="text-right">ROI</TableHead>
-                  <TableHead className="text-right">Veckor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {financialData.users.map((user) => {
-                  const s = financialData.stats[user.id]
-                  if (!s) return null
-                  return (
-                    <TableRow key={user.id}>
-                      <TableCell>{user.display_name}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(s.total_bet)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(s.total_won)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(s.total_lost)}</TableCell>
-                      <TableCell className={cn('text-right font-medium', s.net_profit > 0 && 'text-green-600', s.net_profit < 0 && 'text-red-600')}>{formatCurrency(s.net_profit)}</TableCell>
-                      <TableCell className="text-right">{formatPercent(s.roi_percent)}</TableCell>
-                      <TableCell className="text-right">{s.weeks_participated}</TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold">Per spelare</h2>
+          {financialData.users.map((u) => {
+            const s = financialData.stats[u.id]
+            if (!s) return null
+            return (
+              <Card key={u.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold">{u.display_name}</h3>
+                    <span className={cn('font-data text-lg font-bold', s.net_profit >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
+                      {formatCurrency(s.net_profit)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Insatsat</p>
+                      <p className="font-data text-sm font-medium">{formatCurrency(s.total_bet)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Vunnet</p>
+                      <p className="font-data text-sm font-medium text-emerald-400">{formatCurrency(s.total_won)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Förlorat</p>
+                      <p className="font-data text-sm font-medium text-rose-400">{formatCurrency(s.total_lost)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">ROI</p>
+                      <p className={cn('font-data text-sm font-medium', s.roi_percent >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
+                        {formatPercent(s.roi_percent)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Veckor</p>
+                      <p className="font-data text-sm font-medium">{s.weeks_participated}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Matcher</p>
+                      <p className="font-data text-sm font-medium">{s.total_games_played}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
       )}
     </div>
   )
