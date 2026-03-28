@@ -37,11 +37,7 @@ export function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-background noise-bg p-4">
       <div className="relative z-10 w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center">
-          <img src="/logo.png" alt="BetBros" className="mb-4 h-24 w-24 rounded-2xl" />
-          <h1 className="text-3xl font-bold tracking-tight">
-            <span className="text-primary">Bet</span><span className="text-foreground">Bros</span>
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Logga in med ditt konto</p>
+          <img src="/logo.png" alt="BetBros" className="h-28 w-28 rounded-2xl" />
         </div>
         <div className="rounded-2xl border border-border/40 bg-card/60 p-6 backdrop-blur-sm">
           <form onSubmit={handleSubmit} className="space-y-4">

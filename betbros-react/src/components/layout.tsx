@@ -21,8 +21,8 @@ export function Layout() {
       {/* Desktop header */}
       <header className="sticky top-0 z-50 hidden border-b border-border/40 bg-background/90 backdrop-blur-xl md:block">
         <div className="container mx-auto flex items-center justify-between px-6 py-3">
-          <Link to="/" className="text-xl font-bold tracking-tight">
-            <span className="text-primary">Bet</span><span className="text-foreground">Bros</span>
+          <Link to="/" className="flex items-center gap-2">
+            <img src="/logo.png" alt="BetBros" className="h-8 w-8 rounded-lg" />
           </Link>
           <nav className="flex items-center gap-0.5">
             {navItems.map(({ to, label }) => (
@@ -60,8 +60,8 @@ export function Layout() {
       {/* Mobile header */}
       <header className="sticky top-0 z-50 border-b border-border/30 bg-background/90 backdrop-blur-xl md:hidden">
         <div className="flex items-center justify-between px-4 py-2.5">
-          <Link to="/" className="text-lg font-bold tracking-tight">
-            <span className="text-primary">Bet</span><span className="text-foreground">Bros</span>
+          <Link to="/" className="flex items-center gap-2">
+            <img src="/logo.png" alt="BetBros" className="h-7 w-7 rounded-md" />
           </Link>
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground">{user?.display_name}</span>
