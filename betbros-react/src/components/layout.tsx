@@ -21,8 +21,8 @@ export function Layout() {
       {/* Desktop header */}
       <header className="sticky top-0 z-50 hidden border-b border-border/40 bg-background/90 backdrop-blur-xl md:block">
         <div className="container mx-auto flex items-center justify-between px-6 py-3">
-          <Link to="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="BetBros" className="h-8 w-8 rounded-lg" />
+          <Link to="/" className="text-lg font-bold tracking-tight text-foreground">
+            BetBros
           </Link>
           <nav className="flex items-center gap-0.5">
             {navItems.map(({ to, label }) => (
