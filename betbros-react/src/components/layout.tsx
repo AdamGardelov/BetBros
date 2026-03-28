@@ -66,7 +66,7 @@ export function Layout() {
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground">{user?.display_name}</span>
             <Button variant="ghost" size="sm" onClick={signOut} className="h-7 px-2 text-xs text-muted-foreground">
-              ✕
+              Logga ut
             </Button>
           </div>
         </div>
