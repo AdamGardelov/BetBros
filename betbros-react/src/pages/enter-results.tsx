@@ -22,6 +22,7 @@ export function EnterResultsPage() {
   const [scores, setScores] = useState<Record<string, { home: string; away: string }>>({})
   const [netProfit, setNetProfit] = useState(week?.net_profit?.toString() ?? '')
   const [saving, setSaving] = useState<string | null>(null)
+  const [profitSaved, setProfitSaved] = useState(false)
 
   function getScores(gameId: string) { return scores[gameId] ?? { home: '', away: '' } }
   function setGameScore(gameId: string, field: 'home' | 'away', value: string) {
@@ -44,6 +45,7 @@ export function EnterResultsPage() {
   async function handleSaveNetProfit() {
     if (!week || netProfit === '') return
     await updateNetProfit.mutateAsync({ weekId: week.id, netProfit: parseFloat(netProfit) })
+    setProfitSaved(true)
   }
 
   if (!week) {
@@ -98,7 +100,9 @@ export function EnterResultsPage() {
               <Label>Nettoresultat (kr)</Label>
               <Input type="number" value={netProfit} onChange={(e) => setNetProfit(e.target.value)} placeholder="t.ex. 150 eller -200" />
             </div>
-            <Button onClick={handleSaveNetProfit} disabled={netProfit === ''}>Spara resultat</Button>
+            <Button onClick={handleSaveNetProfit} disabled={netProfit === ''}>
+              {profitSaved ? 'Sparat!' : 'Spara resultat'}
+            </Button>
           </CardContent>
         </Card>
       )}
