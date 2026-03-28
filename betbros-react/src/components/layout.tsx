@@ -60,8 +60,8 @@ export function Layout() {
       {/* Mobile header */}
       <header className="sticky top-0 z-50 border-b border-border/30 bg-background/90 backdrop-blur-xl md:hidden">
         <div className="flex items-center justify-between px-4 py-2.5">
-          <Link to="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="BetBros" className="h-7 w-7 rounded-md" />
+          <Link to="/" className="text-lg font-bold tracking-tight text-foreground">
+            BetBros
           </Link>
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground">{user?.display_name}</span>
