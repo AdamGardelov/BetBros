@@ -127,40 +127,41 @@ export function HistoryPage() {
 
                       return (
                         <div key={game.id} className="rounded-lg border border-border/30 bg-background/50 px-3 py-2.5">
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            {/* Teams and score */}
-                            <div className="flex items-center gap-2">
+                          {/* Row 1: Teams + score */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
                               <span className="text-sm font-semibold">{game.home_team}</span>
-                              <span className="text-xs text-muted-foreground">vs</span>
+                              <span className="mx-1 text-xs text-muted-foreground">vs</span>
                               <span className="text-sm font-semibold">{game.away_team}</span>
-                              {isCompleted && (
-                                <span className="font-data rounded bg-accent px-1.5 py-0.5 text-xs font-bold">
-                                  {game.home_score}–{game.away_score}
-                                </span>
-                              )}
                             </div>
-
-                            {/* Bet kind and line */}
+                            {isCompleted && (
+                              <span className="shrink-0 font-data rounded bg-accent px-2 py-0.5 text-xs font-bold">
+                                {game.home_score}–{game.away_score}
+                              </span>
+                            )}
+                          </div>
+                          {/* Row 2: Type + bet + result */}
+                          <div className="mt-1.5 flex items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                               <span>{gameKindLabel(game.bet_kind)}</span>
-                              {line && <span className="rounded bg-accent px-1.5 py-0.5">{line}</span>}
+                              {line && <span className="rounded bg-accent px-1.5 py-0.5 font-data">{line}</span>}
                             </div>
-
-                            {/* Selector's bet + result pushed to the right */}
                             {bet && (
-                              <div className="ml-auto flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">
+                              <div className="flex shrink-0 items-center gap-1.5">
+                                <span className="font-data text-xs text-muted-foreground">
                                   {bet.prediction === 'exact_score' && bet.predicted_home_score != null
                                     ? `${bet.predicted_home_score}–${bet.predicted_away_score}`
                                     : betTypeLabel(bet.prediction)}
                                 </span>
                                 {bet.status !== BetStatus.Pending && (
-                                  <Badge
-                                    variant={bet.status === BetStatus.Won ? 'default' : bet.status === BetStatus.Refunded ? 'secondary' : 'destructive'}
-                                    className={cn('text-[10px] px-1.5 py-0', bet.status === BetStatus.Won && 'bg-emerald-600')}
-                                  >
-                                    {betStatusLabel(bet.status)}
-                                  </Badge>
+                                  <span className={cn(
+                                    'text-[10px] font-semibold',
+                                    bet.status === BetStatus.Won && 'text-emerald-400',
+                                    bet.status === BetStatus.Lost && 'text-rose-400',
+                                    bet.status === BetStatus.Refunded && 'text-amber-400',
+                                  )}>
+                                    {bet.status === BetStatus.Won ? '✓' : bet.status === BetStatus.Lost ? '✗' : '—'}
+                                  </span>
                                 )}
                               </div>
                             )}
