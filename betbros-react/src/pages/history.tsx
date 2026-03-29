@@ -102,13 +102,19 @@ export function HistoryPage() {
                       <span className="text-rose-400">{losses}L</span>
                     </span>
                   )}
-                  {week.net_profit != null && (
+                  {week.is_cancelled ? (
+                    <span className="ml-auto rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                      Inställd
+                    </span>
+                  ) : week.net_profit != null ? (
                     <span className={cn(
                       'ml-auto font-data text-sm font-bold',
                       profit >= 0 ? 'text-emerald-400' : 'text-rose-400',
                     )}>
                       {formatCurrency(profit)}
                     </span>
+                  ) : (
+                    <span className="ml-auto text-xs text-muted-foreground">Pågår</span>
                   )}
                 </div>
               </AccordionTrigger>
