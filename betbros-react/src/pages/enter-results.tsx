@@ -64,6 +64,17 @@ export function EnterResultsPage() {
   return (
     <div className="space-y-6">
       {week && <WeekHeader week={week} selector={undefined} />}
+
+      {games.length === 0 && (
+        <div className="rounded-xl border border-dashed border-border/60 py-12 text-center">
+          <p className="text-lg font-semibold text-muted-foreground">Inga matcher valda</p>
+          <p className="mt-1 text-sm text-muted-foreground">Du behöver välja matcher innan du kan mata in resultat.</p>
+          <a href="/valj-matcher" className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+            Välj matcher
+          </a>
+        </div>
+      )}
+
       {games.map((game) => {
         const isCompleted = game.status === GameStatus.Completed
         const { home, away } = getScores(game.id)
