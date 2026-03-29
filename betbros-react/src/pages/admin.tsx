@@ -61,10 +61,30 @@ export function AdminPage() {
   async function handleCreateGameWeek() {
     setMessage(null)
     try {
-      const { error } = await supabase.functions.invoke('create-gameweek', { body: { type: 'next' } })
+      // Find the highest week number and create next
+      const maxWeek = weeks.reduce((max, w) => Math.max(max, w.week_number), 0)
+      const nextNum = maxWeek + 1
+      // Rotate selector based on last week
+      const lastWeek = weeks.find((w) => w.week_number === maxWeek)
+      const lastSelector = lastWeek ? users.find((u) => u.id === lastWeek.game_selector_id) : null
+      const ordered = [...users].sort((a, b) => a.rotation_order - b.rotation_order)
+      const nextSelector = lastSelector
+        ? ordered[(lastSelector.rotation_order + 1) % ordered.length]
+        : ordered[0]
+
+      const BASE = new Date(Date.UTC(2025, 10, 24))
+      const start = new Date(BASE.getTime() + (nextNum - 1) * 7 * 24 * 60 * 60 * 1000)
+      const end = new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000)
+
+      const { error } = await supabase.from('game_weeks').insert({
+        week_number: nextNum,
+        start_date: start.toISOString().split('T')[0],
+        end_date: end.toISOString().split('T')[0],
+        game_selector_id: nextSelector.id,
+      })
       if (error) throw error
       await refetchWeeks()
-      setMessage({ type: 'success', text: 'Ny vecka skapad' })
+      setMessage({ type: 'success', text: `Vecka ${nextNum} skapad (${nextSelector.display_name})` })
     } catch (err: unknown) {
       setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Kunde inte skapa vecka' })
     }
@@ -74,8 +94,31 @@ export function AdminPage() {
     const weekNumber = prompt('Veckonummer att ställa in:')
     if (!weekNumber) return
     try {
-      const { error } = await supabase.functions.invoke('create-gameweek', { body: { type: 'cancelled', week_number: parseInt(weekNumber) } })
-      if (error) throw error
+      const weekNum = parseInt(weekNumber)
+      // Check if week exists
+      const existing = weeks.find((w) => w.week_number === weekNum)
+      if (existing) {
+        const { error } = await supabase.from('game_weeks')
+          .update({ is_cancelled: true, is_complete: true })
+          .eq('id', existing.id)
+        if (error) throw error
+      } else {
+        const BASE = new Date(Date.UTC(2025, 10, 24))
+        const ordered = [...users].sort((a, b) => a.rotation_order - b.rotation_order)
+        const selector = ordered[(weekNum - 1) % ordered.length]
+        const start = new Date(BASE.getTime() + (weekNum - 1) * 7 * 24 * 60 * 60 * 1000)
+        const end = new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000)
+
+        const { error } = await supabase.from('game_weeks').insert({
+          week_number: weekNum,
+          start_date: start.toISOString().split('T')[0],
+          end_date: end.toISOString().split('T')[0],
+          game_selector_id: selector.id,
+          is_cancelled: true,
+          is_complete: true,
+        })
+        if (error) throw error
+      }
       await refetchWeeks()
       setMessage({ type: 'success', text: `Vecka ${weekNumber} inställd` })
     } catch (err: unknown) {
@@ -85,7 +128,21 @@ export function AdminPage() {
 
   async function handleCreateCatchupWeek(userId: string) {
     try {
-      const { error } = await supabase.functions.invoke('create-gameweek', { body: { type: 'catchup', selector_id: userId } })
+      const now = new Date()
+      const day = now.getUTCDay()
+      const diff = day === 0 ? -6 : 1 - day
+      const weekStart = new Date(now)
+      weekStart.setUTCDate(now.getUTCDate() + diff)
+      weekStart.setUTCHours(0, 0, 0, 0)
+      const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000)
+
+      const { error } = await supabase.from('game_weeks').insert({
+        week_number: 0,
+        start_date: weekStart.toISOString().split('T')[0],
+        end_date: weekEnd.toISOString().split('T')[0],
+        game_selector_id: userId,
+        is_catchup: true,
+      })
       if (error) throw error
       await refetchWeeks()
       setMessage({ type: 'success', text: 'Ikappvecka skapad' })
