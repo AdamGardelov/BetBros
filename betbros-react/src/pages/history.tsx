@@ -41,7 +41,7 @@ export function HistoryPage() {
 
   if (isLoading) return <div className="flex items-center justify-center py-20 text-muted-foreground">Laddar...</div>
 
-  const sortedWeeks = [...weeks].reverse()
+  const sortedWeeks = [...weeks].sort((a, b) => b.week_number - a.week_number)
 
   function lineLabel(game: Game): string | null {
     if (game.bet_kind === BetType.OverOrUnder && game.over_under_line != null) return `${game.over_under_line}`
