@@ -4,7 +4,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '..
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { formatCurrency, betTypeLabel, gameKindLabel } from '../utils/format'
 import { supabase } from '../lib/supabase'
-import { BetStatus, GameStatus } from '../types'
+import { BetType, BetStatus, GameStatus } from '../types'
 import type { User, Game, Bet } from '../types'
 import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '../lib/query-keys'
@@ -44,9 +44,9 @@ export function HistoryPage() {
   const sortedWeeks = [...weeks].reverse()
 
   function lineLabel(game: Game): string | null {
-    if (game.over_under_line != null) return `${game.over_under_line}`
-    if (game.asian_handicap_line != null) return `${game.asian_handicap_line}`
-    if (game.handicap_3way_line != null) return `${game.handicap_3way_line}`
+    if (game.bet_kind === BetType.OverOrUnder && game.over_under_line != null) return `${game.over_under_line}`
+    if ((game.bet_kind === BetType.HomeWinAH || game.bet_kind === BetType.AwayWinAH) && game.asian_handicap_line != null) return `${game.asian_handicap_line}`
+    if ((game.bet_kind === BetType.HomeWinH3W || game.bet_kind === BetType.DrawH3W || game.bet_kind === BetType.AwayWinH3W) && game.handicap_3way_line != null) return `${game.handicap_3way_line}`
     return null
   }
 

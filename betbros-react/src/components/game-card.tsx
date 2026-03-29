@@ -1,5 +1,5 @@
 import type { Game, Bet } from '../types'
-import { BetStatus, GameStatus } from '../types'
+import { BetType, BetStatus, GameStatus } from '../types'
 import { betTypeLabel, betStatusLabel, gameKindLabel } from '../utils/format'
 import { Badge } from './ui/badge'
 import { cn } from '../lib/utils'
@@ -14,9 +14,9 @@ export function GameCard({ game, bet, showScore = true }: GameCardProps) {
   const isCompleted = game.status === GameStatus.Completed
 
   function lineLabel(): string | null {
-    if (game.over_under_line != null) return `${game.over_under_line}`
-    if (game.asian_handicap_line != null) return `${game.asian_handicap_line}`
-    if (game.handicap_3way_line != null) return `${game.handicap_3way_line}`
+    if (game.bet_kind === BetType.OverOrUnder && game.over_under_line != null) return `${game.over_under_line}`
+    if ((game.bet_kind === BetType.HomeWinAH || game.bet_kind === BetType.AwayWinAH) && game.asian_handicap_line != null) return `${game.asian_handicap_line}`
+    if ((game.bet_kind === BetType.HomeWinH3W || game.bet_kind === BetType.DrawH3W || game.bet_kind === BetType.AwayWinH3W) && game.handicap_3way_line != null) return `${game.handicap_3way_line}`
     return null
   }
 
