@@ -151,6 +151,18 @@ export function AdminPage() {
     }
   }
 
+  async function handleDeleteWeek(weekId: string, weekNumber: number) {
+    if (!confirm(`Vill du ta bort vecka ${weekNumber}? Alla matcher och spel för denna vecka tas bort.`)) return
+    try {
+      const { error } = await supabase.from('game_weeks').delete().eq('id', weekId)
+      if (error) throw error
+      await refetchWeeks()
+      setMessage({ type: 'success', text: `Vecka ${weekNumber} borttagen` })
+    } catch (err: unknown) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Kunde inte ta bort vecka' })
+    }
+  }
+
   async function handleCascadeSelector(weekId: string, selectorId: string) {
     try {
       const { error } = await supabase.functions.invoke('cascade-selector', { body: { week_id: weekId, selector_id: selectorId } })
@@ -265,12 +277,22 @@ export function AdminPage() {
                       </span>
                     )}
                   </div>
-                  <Select value={week.game_selector_id} onValueChange={(v) => handleCascadeSelector(week.id, v)}>
-                    <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {users.map((u) => (<SelectItem key={u.id} value={u.id}>{u.display_name}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    <Select value={week.game_selector_id} onValueChange={(v) => handleCascadeSelector(week.id, v)}>
+                      <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {users.map((u) => (<SelectItem key={u.id} value={u.id}>{u.display_name}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
+                      onClick={() => handleDeleteWeek(week.id, week.week_number)}
+                    >
+                      Ta bort
+                    </Button>
+                  </div>
                 </div>
               )
             })}
