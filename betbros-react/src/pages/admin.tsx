@@ -29,6 +29,34 @@ export function AdminPage() {
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null)
+  const [newWeekNumber, setNewWeekNumber] = useState('')
+  const [newWeekSelector, setNewWeekSelector] = useState('')
+
+  async function handleCreateSpecificWeek() {
+    if (!newWeekNumber || !newWeekSelector) return
+    setMessage(null)
+    try {
+      // Calculate dates from week number using BASE_DATE
+      const BASE = new Date(Date.UTC(2025, 10, 24))
+      const weekNum = parseInt(newWeekNumber)
+      const start = new Date(BASE.getTime() + (weekNum - 1) * 7 * 24 * 60 * 60 * 1000)
+      const end = new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000)
+
+      const { error } = await supabase.from('game_weeks').insert({
+        week_number: weekNum,
+        start_date: start.toISOString().split('T')[0],
+        end_date: end.toISOString().split('T')[0],
+        game_selector_id: newWeekSelector,
+      })
+      if (error) throw error
+      await refetchWeeks()
+      setNewWeekNumber('')
+      setNewWeekSelector('')
+      setMessage({ type: 'success', text: `Vecka ${weekNum} skapad` })
+    } catch (err: unknown) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Kunde inte skapa vecka' })
+    }
+  }
 
   async function handleCreateGameWeek() {
     setMessage(null)
@@ -89,17 +117,35 @@ export function AdminPage() {
         </Alert>
       )}
 
-      {/* Actions */}
+      {/* Create specific week */}
       <Card>
-        <CardHeader><CardTitle>Åtgärder</CardTitle></CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          <Button onClick={handleCreateGameWeek}>Skapa nästa vecka</Button>
-          <Button variant="outline" onClick={handleCreateCancelledWeek}>Ställ in vecka</Button>
-          {users.map((u) => (
-            <Button key={u.id} variant="outline" onClick={() => handleCreateCatchupWeek(u.id)}>
-              Ikappvecka: {u.display_name}
-            </Button>
-          ))}
+        <CardHeader><CardTitle>Skapa vecka</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Veckonummer</Label>
+              <Input type="number" min={1} value={newWeekNumber} onChange={(e) => setNewWeekNumber(e.target.value)} placeholder="t.ex. 15" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Matchväljare</Label>
+              <Select value={newWeekSelector} onValueChange={setNewWeekSelector}>
+                <SelectTrigger><SelectValue placeholder="Välj spelare" /></SelectTrigger>
+                <SelectContent>
+                  {users.map((u) => (<SelectItem key={u.id} value={u.id}>{u.display_name}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={handleCreateSpecificWeek} disabled={!newWeekNumber || !newWeekSelector}>Skapa vecka</Button>
+            <Button variant="outline" onClick={handleCreateGameWeek}>Skapa nästa vecka (auto)</Button>
+            <Button variant="outline" onClick={handleCreateCancelledWeek}>Ställ in vecka</Button>
+            {users.map((u) => (
+              <Button key={u.id} variant="outline" onClick={() => handleCreateCatchupWeek(u.id)}>
+                Ikapp: {u.display_name}
+              </Button>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
